@@ -41,18 +41,6 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
         await bot.send_message(chat_id=worker, text=f"Success! Here is your verification code, just click it to copy:")
         await bot.send_message(chat_id=worker, text=f'<code>{verification_code}</code>', parse_mode='HTML')
 
-    if not auto_approve:
-        # вытащить platform_id из текста сообщения
-        for i in str(msg.text).split():
-            if i.lower().startswith('platform_id'):
-                platform_id = i[11:]
-                break
-
-        with open(results, 'w', encoding='utf-8') as f:
-            f.writelines(f'{platform_id}, +\n')
-        # убрать кнопки админа
-        await bot.edit_message_text(f'{msg.text}\n✅ Принято. Platform_id сохранен.',
-                                    msg.chat.id, msg.message_id, reply_markup=None)
 
 
 # admin нажал ❌
@@ -63,20 +51,6 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
     if auto_approve:
         # обновить сообщение у админа и убрать кнопки
         await bot.edit_message_text(f'{msg.text}\n\n❌ Отклонено. Напиши причину отказа ответом на это сообщение!',
-                                    msg.chat.id, msg.message_id, reply_markup=None)
-
-    if not auto_approve:
-        # вытащить platform_id из текста сообщения
-        for i in str(msg.text).split():
-            if i.lower().startswith('platform_id'):
-                platform_id = i[11:]
-                break
-
-        with open(results, 'a') as f:
-            f.writelines(f'{platform_id}, -\n')
-        # обновить сообщение у админа и убрать кнопки
-        await bot.edit_message_text(f'{msg.text}\n❌ Отклонено. Platform_id сохранен.\n\n'
-                                    f'Напиши причину отказа ответом на это сообщение!',
                                     msg.chat.id, msg.message_id, reply_markup=None)
 
 

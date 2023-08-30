@@ -5,9 +5,9 @@ import os
 from aiogram import Router, Bot, F, types
 from aiogram.filters import Command, StateFilter, or_f
 # from aiogram.types import Message, CallbackQuery
-from bot_logic import log, Access, FSM, dwnld_photo_or_doc
+from bot_logic import log, Access, FSM # dwnld_photo_or_doc
 from config import Config, load_config
-from keyboards import keyboard_admin, keyboard_ok, keyboard_privacy
+from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
 from settings import admins, book, project, auto_approve, verification_code, platform_id_example
 from lexic import lex
 from aiogram.fsm.context import FSMContext
@@ -23,18 +23,20 @@ TKN: str = config.tg_bot.token
 storage: MemoryStorage = MemoryStorage()
 user_files: [str, str] = {}
 
+baza = 'user_baza.json'
+
 
 # команда /help
 @router.message(Command(commands=['help']))
 async def process_help_command(message: Message):
     log('logs.json', message.from_user.id, '/help')
-    await message.answer(EN[project]['help'])
+    await message.answer(lex['help'])
 
 
-# чекнуть не в бане ли юзер
-@router.message(Access(book['ban']))
-async def no_access(message: Message):
-    await message.answer(EN[project]['ban'])
+# # чекнуть не в бане ли юзер
+# @router.message(Access(book['ban']))
+# async def no_access(message: Message):
+#     await message.answer(lex['ban'])
 
 
 # команда /start
@@ -53,7 +55,7 @@ async def process_start_command(message: Message, bot: Bot, state: FSMContext):
     await state.set_state(FSM.policy)
 
     # приветствие и выдача политики
-    await message.answer(text=EN[project]['start'], reply_markup=keyboard_privacy)
+    await message.answer(text=lex['start'])
     await message.answer(text='I read and agree', reply_markup=keyboard_ok)
 
     # сообщить админу, кто нажал старт
@@ -63,76 +65,56 @@ async def process_start_command(message: Message, bot: Bot, state: FSMContext):
                                    chat_id=i, disable_notification=True)
 
 
+# команда /next
+@router.message(Command(commands=['next']))
+async def process_help_command(message: Message, bot: Bot, state: FSMContext):
+    user = str(message.from_user.id)
+
+    log('logs.json', user, '/next')
+
+    with open(baza, 'r') as f:
+        data = json.load(f)
+
+    tasks = data[user]
+    for i in tasks[0]:
+        print(tasks[0][i])
+        if tasks[0][i][0] == 'status':
+            await bot.send_message(chat_id=user, text=lex['tasks'][i], parse_mode='HTML')
+            print(111)
+            break
+    # бот переходит в состояние ожидания след файла
+    await state.set_state(FSM.ready_for_next)
+
+
+# команда /status
+@router.message(Command(commands=['status']))
+async def process_help_command(message: Message):
+    log('logs.json', message.from_user.id, '/help')
+    await message.answer(lex['help'])
+
+
 # согласен с политикой ✅
 @router.callback_query(lambda x: x.data == "ok_pressed", StateFilter(FSM.policy))
 async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     worker = callback.from_user
 
     # логи
-    # if str(worker.id) not in admins:
     log('logs.json', worker.id, 'privacy_ok')
 
     # выдать инструкцию и примеры
-    await bot.send_message(text=EN[project]['instruct1'], chat_id=worker.id)
-    # await bot.send_photo(photo=EN[project]['example_link'], caption='Examples', chat_id=worker.id)
-    await bot.send_media_group(media=json.loads(EN[project]['example_json']), chat_id=worker.id)
-    await bot.send_message(text=EN[project]['instruct2'], chat_id=worker.id, parse_mode='HTML')
+    await bot.send_message(text=lex['instruct1'], chat_id=worker.id, parse_mode='HTML')
+    # await bot.send_photo(photo=lex['example_link'], caption='Examples', chat_id=worker.id)
+    # await bot.send_media_group(media=json.loads(lex['example_json']), chat_id=worker.id)
     time.sleep(2)
 
-    if auto_approve:
-        await bot.send_message(text=f"{EN[project]['instruct3']}\n\n{EN[project]['full_hd']}",
-                               chat_id=worker.id, parse_mode='HTML')
-        # бот переходит в состояние ожидания первой фотки
-        await state.set_state(FSM.upload_photo)
+    await bot.send_message(text=f"{lex['instruct2']}\n\n{lex['full_hd']}", chat_id=worker.id, parse_mode='HTML')
 
-    if not auto_approve:
-        # бот переходит в состояние ожидания platform_id
-        await bot.send_message(text=f'First, please now send your platform ID.\nExample: {platform_id_example}',
-                               chat_id=worker.id, parse_mode='HTML')
-        await state.set_state(FSM.platform_user_id)
-
-
-# если юзер пишет что-то не нажав ✅
-@router.message(StateFilter(FSM.policy))
-async def privacy_missing(msg: Message):
-    log('logs.json', msg.from_user.id, 'privacy_missing')
-    await msg.answer("Please accept the policy first.")
-
-
-# если юзер кидает фото не отправив platform ID
-@router.message(F.content_type.in_({'photo', 'document'}), StateFilter(FSM.platform_user_id))
-async def platform_id_missing(msg: Message):
-    log('logs.json', msg.from_user.id, 'platform_id_missing')
-    await msg.answer("I am now expecting your platform ID.")
-
-
-# юзер отправил свой id площадки
-@router.message(F.content_type.in_({'text'}), StateFilter(FSM.platform_user_id))
-async def platform_user_id(msg: types.Message, bot: Bot, state: FSMContext):
-    platform_id = str(msg.text)
-    worker = msg.from_user
-
-    if len(platform_id) == len(platform_id_example):
-        # бот переходит в состояние ожидания первой фотки
-        await bot.send_message(text=f"Ok! {EN[project]['instruct3']}\n\n{EN[project]['full_hd']}",
-                               chat_id=worker.id, parse_mode='HTML')
-        await state.set_state(FSM.upload_photo)
-
-        # логи
-        log('logs.json', worker.id, f'platform_id {platform_id}')
-        book.setdefault(EN[project]['log'], []).append(str(worker.id))
-        # log('user_baza.json', 'platform_ids'[worker.id], platform_id)
-
-        # сохранить platform_id
-        with open('user_baza.json', encoding='utf-8') as f:
-            data = json.load(f)
-        data['platform_ids'][str(worker.id)] = platform_id
-        with open('user_baza.json', 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-
-    else:
-        await msg.reply('It does not look like a correct id, try again.')
-        log('logs.json', worker.id, 'failed id')
+#
+# # если юзер пишет что-то не нажав ✅
+# @router.message(StateFilter(FSM.policy))
+# async def privacy_missing(msg: Message):
+#     log('logs.json', msg.from_user.id, 'privacy_missing')
+#     await msg.answer(text=lex['privacy_missing'])
 
 
 # юзер отправил альбом: не принимается
@@ -140,82 +122,73 @@ async def platform_user_id(msg: types.Message, bot: Bot, state: FSMContext):
 async def alb(msg: Message):
     worker = msg.from_user
     log('logs.json', worker.id, 'album')
-    await msg.reply("Please send each file in two separate messages, not as one album.")
+    await msg.reply(lex['album'])
 
 
-# юзер отправил сжатые фото
-@router.message(F.content_type.in_({'photo'}))
-async def compressed_pic(msg: Message, bot: Bot, state: FSMContext):
+# юзер отправил сжатый файл: не принимается
+@router.message(F.content_type.in_({'photo', 'video'}))
+async def compressed_pic(msg: Message):
     log('logs.json', msg.from_user.id, '/file')
-    await msg.reply(EN[project]['full_hd'], parse_mode='HTML')
+    await msg.reply(lex['full_hd'], parse_mode='HTML')
 
 
-# юзер отправил 1ое фото
-@router.message(F.content_type.in_({'document'}), StateFilter(FSM.upload_photo))
+# юзер отправил норм файл
+@router.message(F.content_type.in_({'document'}))
 async def photo1(msg: Message, bot: Bot, state: FSMContext):
-    worker = msg.from_user
+    user = str(msg.from_user.id)
 
-    # сохранить первый файл
-    await dwnld_photo_or_doc(msg, bot, worker, TKN)
-    user_files[worker.id] = []
-    user_files[worker.id].append(msg.message_id)
-    log('logs.json', worker.id, 'SENT_FILE_1')
+    with open(baza, 'r') as f:
+        data = json.load(f)
 
-    # бот переходит в состояние ожидания 2го фото
-    await state.set_state(FSM.upload_2_photo)
-    await msg.reply("Good, now send the second part.")
+    # вычисляем, какое было прислано задание
+    sent_file = ''
+    tasks = data[user]
+    for i in tasks[0]:
+        print(tasks[0][i])
+        if tasks[0][i][0] in ('status', 'reject'):
+            sent_file = i
+            log('logs.json', user, f'SENT_{sent_file}')
+            break
 
+    # сохраняем ссылку на файл
+    file_id = msg.document.file_id
+    file_info = await bot.get_file(file_id)
+    file_url = file_info.file_path
+    tg_file_link = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
 
-# юзер отправил 2ое фото
-@router.message(F.content_type.in_({'document'}), StateFilter(FSM.upload_2_photo))
-# @router.message(lambda msg: msg.text == 'a')
-async def photo2(msg: types.Message, bot: Bot, state: FSMContext):
-    worker = msg.from_user
+    # меняем статус задания
+    data[user][0][sent_file] = ('review', tg_file_link)
 
-    # сохранить 2й файл
-    user_files[worker.id].append(msg.message_id)
-    await dwnld_photo_or_doc(msg, bot, worker, TKN)
+    with open(baza, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
-    if auto_approve:    # юзер ожидает проверку
-        await msg.reply(f"Thanks! Please wait for us to check your work.")
-        await state.set_state(FSM.waiting_verif)
+    # если остались еще задания
+    if sent_file != "file65":
+        # Бот ожидает нажатия /next
+        await state.set_state(FSM.done_a_task)
+        await msg.reply(f'Принят файл {sent_file}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
+
+    # если был отправлен последний файл
+    if sent_file == "file65":
+        log('logs.json', user, 'SENT_ALL_FILES')
+        await msg.reply(lex['all_sent'])
+        # await state.set_state(FSM.waiting_verif)
+
         # Отправить файлЫ админу на проверку
-        for i in admins:
-            for pic in user_files[worker.id]:
-                await bot.forward_message(chat_id=i, from_chat_id=worker.id, message_id=pic)
-            await bot.send_message(chat_id=i,
-                                   text=f'Принять файлы от {worker.full_name} @{worker.username} id{worker.id}?',
-                                   reply_markup=keyboard_admin)
+        for task in data[user][0] :
+            if task[0] == 'review':
+                # Отправить каждый файл, у которого статус - review
+                await bot.send_photo(chat_id=admins[0], photo=task[1], caption=f'{task} id{user}')
+        # сообщения с кнопками (принять или нет)
+        await bot.send_message(chat_id=admins[0], text=f'Принять файлы от id{user}?', reply_markup=keyboard_admin)
 
-    if not auto_approve:    # Дать юзеру код
-        await bot.send_message(chat_id=worker.id, text=f"Done! Here is your verification code, just click it to copy:")
-        await bot.send_message(chat_id=worker.id, text=f'<code>{verification_code}</code>', parse_mode='HTML')
+#
+#     # логи
+#     # if str(worker.id) not in admins:
+#     log('logs.json', worker.id, 'SENT_FILE_2')
+#     log('user_baza.json', lex['log'], str(worker.id))
+#     book.setdefault(lex['log'], []).append(str(worker.id))
+#
+#     print(worker.full_name, 'sent all files')
+#     print()
 
-        # Отправить файлЫ админу на проверку
-        with open('user_baza.json', 'r') as f:
-            data = json.load(f)
-            platform_id = data['platform_ids'][str(worker.id)]
-
-        for i in admins:
-            for pic in user_files[worker.id]:
-                await bot.forward_message(chat_id=i, from_chat_id=worker.id, message_id=pic)
-            await bot.send_message(chat_id=i,
-                                   text=f'Принять файлы от {worker.full_name} @{worker.username} id{worker.id}?\n'
-                                        f'platform_id{platform_id}',
-                                   reply_markup=keyboard_admin)
-
-    # логи
-    # if str(worker.id) not in admins:
-    log('logs.json', worker.id, 'SENT_FILE_2')
-    log('user_baza.json', EN[project]['log'], str(worker.id))
-    book.setdefault(EN[project]['log'], []).append(str(worker.id))
-
-    print(worker.full_name, 'sent all files')
-    print()
-
-
-# # если юзер что-то пишет, когда бот ожидает фото
-# @router.message(~Access(admins), F.content_type.in_({'text'}), or_f(StateFilter(FSM.upload_photo), StateFilter(FSM.upload_2_photo)))
-# async def pics_id_missing(msg: Message):
-#     log('logs.json', msg.from_user.id, 'pics_id_missing')
-#     await msg.answer("I am now expecting pictures.")

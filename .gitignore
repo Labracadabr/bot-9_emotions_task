@@ -2,6 +2,10 @@ fix.py
 .env
 .png
 test.py
+logs.json
+user_baza.json
+txt
+handlers
 
 /OUTPUT
 /MED

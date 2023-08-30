@@ -1,4 +1,4 @@
-from aiogram.types import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup
+from aiogram.types import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 
 privacy_en: str = "https://drive.google.com/file/d/1RddAFv77L6sL2tvPJBFxA5eI-Zb9Z1AC/view"
@@ -6,6 +6,8 @@ privacy_en: str = "https://drive.google.com/file/d/1RddAFv77L6sL2tvPJBFxA5eI-Zb9
 # кнопки как опция ответа
 # button_start = KeyboardButton(text='/start')
 # button_help = KeyboardButton(text='/help')
+button_next = KeyboardButton(text='/next')
+button_stat = KeyboardButton(text='/status')
 
 url_button = InlineKeyboardButton(text='Privacy policy', url=privacy_en)
 privacy_ok = InlineKeyboardButton(text='✅', callback_data='ok_pressed')
@@ -17,3 +19,4 @@ admin_no: InlineKeyboardButton = InlineKeyboardButton(text='❌', callback_data=
 keyboard_privacy = InlineKeyboardMarkup(inline_keyboard=[[url_button]])
 keyboard_ok = InlineKeyboardMarkup(inline_keyboard=[[privacy_ok]])
 keyboard_admin = InlineKeyboardMarkup(inline_keyboard=[[admin_ok], [admin_no]])
+keyboard_user = ReplyKeyboardMarkup(keyboard=[[button_next], [button_stat]], resize_keyboard=True)

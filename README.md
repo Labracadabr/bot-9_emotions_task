@@ -1,4 +1,4 @@
-# bot-6_data_collector
+# bot-9_multiple_tasks
 
 1. Создать бота через https://t.me/BotFather с командами start и help
 2. Создать файл .env со своим токеном по примеру файла example.env

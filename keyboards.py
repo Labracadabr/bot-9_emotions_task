@@ -9,7 +9,7 @@ privacy_en: str = "https://drive.google.com/file/d/1RddAFv77L6sL2tvPJBFxA5eI-Zb9
 button_next = KeyboardButton(text='/next')
 button_stat = KeyboardButton(text='/status')
 
-url_button = InlineKeyboardButton(text='Privacy policy', url=privacy_en)
+url_button = InlineKeyboardButton(text='Политика конфиденциальности', url=privacy_en)
 privacy_ok = InlineKeyboardButton(text='✅', callback_data='ok_pressed')
 
 admin_ok: InlineKeyboardButton = InlineKeyboardButton(text='✅', callback_data='admin_ok')

@@ -2,8 +2,7 @@ import asyncio
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram import Bot, Dispatcher
 from config import Config, load_config
-# import test
-import handler_admin, handler_user
+import handler_admin, handler_user, test
 
 
 # Функция конфигурирования и запуска бота

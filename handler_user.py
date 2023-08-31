@@ -49,7 +49,7 @@ async def process_help_command(msg: Message, bot: Bot):
 
     non = rev = rej = acc = 0
     try:
-        info = data[user][0]
+        info = data[user]
         for task in info:
             print(task)
             if info[task][0] == 'status':
@@ -63,8 +63,8 @@ async def process_help_command(msg: Message, bot: Bot):
     except KeyError:
         non = '65.'
 
-        await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
-                             f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
+    await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
+                         f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
 
 # команда /start
 @router.message(Command(commands=['start']))
@@ -165,71 +165,57 @@ async def photo1(msg: Message, bot: Bot, state: FSMContext):
 
     # сохраняем ссылку на файл
     file_id = msg.document.file_id
-    file_info = await bot.get_file(file_id)
-    file_url = file_info.file_path
-    tg_file_link = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
 
-    file_extension = tg_file_link.split('.')[-1].lower()
-    if file_extension == 'heic':
-        await msg.reply('Я не могу принимать файлы с расширением .heic, измените расширение в опциях отправки или камеры.')
+    with open(baza, 'r') as f:
+        data = json.load(f)
 
-    else:
-        with open(baza, 'r') as f:
-            data = json.load(f)
+    # вычисляем, какое было прислано задание
+    sent_file = ''
+    tasks = data[user]
+    for i in tasks:
+        print(tasks[i])
+        if tasks[i][0] in ('status', 'reject'):
+            sent_file = i
+            log('logs.json', user, f'SENT_{sent_file}')
+            break
 
-        # вычисляем, какое было прислано задание
-        sent_file = ''
-        tasks = data[user]
-        for i in tasks:
-            print(tasks[i])
-            if tasks[i][0] in ('status', 'reject'):
-                sent_file = i
-                log('logs.json', user, f'SENT_{sent_file}')
-                break
+    # меняем статус задания
+    data[user][sent_file] = ('review', file_id)
+    tasks = data[user]
 
-        # меняем статус задания
-        data[user][sent_file] = ('review', tg_file_link)
-        tasks = data[user]
+    with open(baza, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
-        with open(baza, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+    # проверить остались ли доступные задания
+    more_tasks = False
+    for i in tasks:
+        if tasks[i][0] in ('status', 'reject'):
+            more_tasks = True
+            break
 
-        # проверить остались ли доступные задания
-        more_tasks = False
-        for i in tasks:
-            if tasks[i][0] in ('status', 'reject'):
-                more_tasks = True
-                break
+    # если остались еще задания
+    if more_tasks:
+        # Бот ожидает нажатия /next
+        await state.set_state(FSM.done_a_task)
+        await msg.reply(f'Получен файл для задания {sent_file[-2:]}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
 
-        # если остались еще задания
-        if more_tasks:
-            # Бот ожидает нажатия /next
-            await state.set_state(FSM.done_a_task)
-            await msg.reply(f'Получен файл для задания {sent_file[-2:]}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
+    # если был отправлен последний файл
+    if not more_tasks:
+        # уведомить юзера чтоб ожидал проверку
+        await msg.reply(lex['all_sent'])
+        # Отправить файлЫ админу на проверку
+        for task in tasks:
+            print('adm', task)
+            if tasks[task][0] == 'review':
+                # Отправить каждый файл, у которого статус == review
+                file_id = tasks[task][1]
+                text = lex['tasks'][task].split('\n')[0]
 
-        # если был отправлен последний файл
-        if not more_tasks:
-            # Отправить файлЫ админу на проверку
-            for task in tasks:
-                print('adm', task)
-                if tasks[task][0] == 'review':
-                    # Отправить каждый файл, у которого статус == review
-                    url = tasks[task][1]
-                    file = URLInputFile(url=url)
-                    file_extension = url.split('.')[-1].lower()
-                    text = lex['tasks'][task].split('\n')[0]
+                await bot.send_document(chat_id=user, document=file_id, caption=text, parse_mode='HTML')
 
-                    if file_extension in ('jpg', 'jpeg', 'png', 'gif', 'heic'):
-                        await bot.send_photo(chat_id=user, photo=file, caption=text, parse_mode='HTML')
-                    else:
-                        await bot.send_video(chat_id=user, video=file, caption=text, parse_mode='HTML')
+        # сообщения с кнопками (принять или нет)
+        await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?', reply_markup=keyboard_admin)
 
-                    await bot.send_photo(chat_id=admins[0], photo=task[1], caption=f'{task} id{user}')
-            # сообщения с кнопками (принять или нет)
-            await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?', reply_markup=keyboard_admin)
-
-            log('logs.json', user, 'SENT_ALL_FILES')
-            # уведомить юзера чтоб ожидал проверку
-            await msg.reply(lex['all_sent'])
+        log('logs.json', user, 'SENT_ALL_FILES')
 
 

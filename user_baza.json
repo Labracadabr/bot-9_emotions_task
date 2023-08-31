@@ -2,15 +2,19 @@
   "992863889": {
     "file01": [
       "accept",
-      "https://api.telegram.org/file/bot6295700129:AAHL3njekmI8wcpzouiB4xiB2UQPpfB0lI4/documents/file_37.png"
+      "BQACAgUAAxkBAAIC52Tv4ap0YVgJsfkFKjVGGoJSMdtVAAI2CgAC3E-BVz6R8zINlS8xMAQ"
     ],
     "file02": [
+      "accept",
+      "BQACAgUAAxkBAAIC62Tv4a99gtAHqT22Wr2Ox2W9PqiZAAI3CgAC3E-BV2xTdjQruR-lMAQ"
+    ],
+    "file03": [
       "review",
-      "https://api.telegram.org/file/bot6295700129:AAHL3njekmI8wcpzouiB4xiB2UQPpfB0lI4/documents/file_49.png"
+      "BQACAgUAAxkBAAIDCWTv4r_SYbNkypSkiOZLw-A4_phiAAI7CgAC3E-BV6SpUCgOqfERMAQ"
     ],
     "file65": [
       "accept",
-      "https://api.telegram.org/file/bot6295700129:AAHL3njekmI8wcpzouiB4xiB2UQPpfB0lI4/documents/file_43.png"
+      "BQACAgUAAxkBAAIC_mTv4kNBtEHX0FH0Tibh5WsktpVgAAI6CgAC3E-BVzwD3tmayksdMAQ"
     ]
   }
 }

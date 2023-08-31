@@ -34,7 +34,8 @@
     "30/08/2023 23:32, Dmitrii Minokin, @its_dmitrii, id 992863889, en",
     "31/08/2023 00:05, Dmitrii Minokin, @its_dmitrii, id 992863889, en",
     "31/08/2023 00:05, Dmitrii Minokin, @its_dmitrii, id 992863889, en",
-    "31/08/2023 00:07, Dmitrii Minokin, @its_dmitrii, id 992863889, en"
+    "31/08/2023 00:07, Dmitrii Minokin, @its_dmitrii, id 992863889, en",
+    "31/08/2023 00:40, Dmitrii Minokin, @its_dmitrii, id 992863889, en"
   ],
   "992863889": [
     "/next",
@@ -213,6 +214,26 @@
     "/next",
     "SENT_file02",
     "/next",
-    "SENT_file02"
+    "SENT_file02",
+    "/start",
+    "privacy_ok",
+    "/next",
+    "SENT_file01",
+    "/next",
+    "SENT_file02",
+    "/next",
+    "/next",
+    "SENT_file03",
+    "/next",
+    "/next",
+    "/help",
+    "/help",
+    "/help",
+    "/next",
+    "SENT_file65",
+    "SENT_ALL_FILES",
+    "/next",
+    "SENT_file03",
+    "SENT_ALL_FILES"
   ]
 }

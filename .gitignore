@@ -2,14 +2,16 @@ fix.py
 .env
 .png
 test.py
-logs.json
-user_baza.json
+#logs.json
+#user_baza.json
 txt
 handlers
+token.json
+hz.py
+aaa.tsv
+main.py
 
-/OUTPUT
-/MED
-/SELFIES
+
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

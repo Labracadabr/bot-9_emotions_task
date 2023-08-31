@@ -8,13 +8,12 @@ from aiogram.filters import Command, StateFilter, or_f
 from bot_logic import log, Access, FSM # dwnld_photo_or_doc
 from config import Config, load_config
 from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
-from settings import admins, book, baza
+from settings import admins, baza
 from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import default_state
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import CallbackQuery, Message, URLInputFile
-from aiogram.methods.pin_chat_message import PinChatMessage
 
 
 # Инициализация всяких ботских штук
@@ -66,6 +65,7 @@ async def process_help_command(msg: Message, bot: Bot):
     await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
                          f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
 
+
 # команда /start
 @router.message(Command(commands=['start']))
 async def process_start_command(message: Message, bot: Bot, state: FSMContext):
@@ -92,9 +92,9 @@ async def process_start_command(message: Message, bot: Bot, state: FSMContext):
             await bot.send_message(text=f'Bot started by id{user.id} {user.full_name} @{user.username}',
                                    chat_id=i, disable_notification=True)
 
+    # создать учетную запись юзера, если её еще нет
     with open(baza, 'r') as f:
         data = json.load(f)
-
     if str(user.id) not in data:
         data.setdefault(str(user.id), lex['user_account'])
         with open(baza, 'w', encoding='utf-8') as f:
@@ -108,17 +108,17 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 
     log('logs.json', user, '/next')
 
+    # считать статусы заданий юзера
     with open(baza, 'r') as f:
         data = json.load(f)
-
     tasks = data[user]
-    print(tasks)
+
+    # найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
     for i in tasks:
-        print(tasks[i])
         if tasks[i][0] in ('status', 'reject'):
             await bot.send_message(chat_id=user, text=lex['tasks'][i], parse_mode='HTML')
-            print('task sent')
             break
+
     # бот переходит в состояние ожидания след файла
     await state.set_state(FSM.ready_for_next)
 
@@ -211,10 +211,11 @@ async def photo1(msg: Message, bot: Bot, state: FSMContext):
                 file_id = tasks[task][1]
                 text = lex['tasks'][task].split('\n')[0]
 
-                await bot.send_document(chat_id=user, document=file_id, caption=text, parse_mode='HTML')
+                await bot.send_document(chat_id=admins[0], document=file_id, caption=text, parse_mode='HTML')
 
         # сообщения с кнопками (принять или нет)
-        await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?', reply_markup=keyboard_admin)
+        await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?'
+                                                       f'\n{msg.from_user.full_name} @{msg.from_user.username}', reply_markup=keyboard_admin)
 
         log('logs.json', user, 'SENT_ALL_FILES')
 

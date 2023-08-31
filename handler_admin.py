@@ -4,7 +4,10 @@ from settings import admins, book, baza
 from bot_logic import Access, log
 from lexic import lex
 import json
+import os
 from config import Config, load_config
+import pygsheets
+import time
 
 
 # Инициализация
@@ -47,6 +50,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
     tasks = data[worker]
     for file in tasks:
         tasks[file][0] = 'accept'
+        print(tasks[file][0])
 
         # добыть ссылку по file_id
         file_info = await bot.get_file(tasks[file][1])
@@ -54,13 +58,43 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
         url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
         urls.append(url)
 
+    # сохранить статусы заданий
+    data.setdefault(worker, tasks)
+    with open(baza, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+
     # убрать кнопки админа
     await bot.edit_message_text(f'{msg.text}\n✅ Принято', msg.chat.id, msg.message_id, reply_markup=None)
     # Дать юзеру аппрув
-    await bot.send_message(chat_id=worker, text=lex['all_approved']+f'\nid{worker}')
+    await bot.send_message(chat_id=worker, text=lex['all_approved']+f'id{worker}')
 
-    # for url in urls:
+    # сохранить ссылки
+    gc = pygsheets.authorize(service_file='token.json')
+    sheet_url = 'https://docs.google.com/spreadsheets/d/1F2489hUxzXtMJMJuXPE_GKl8eR203HVpNc3bR-sNf7M/edit#gid=0'
+    spreadsheet = gc.open_by_url(sheet_url)
+    spreadsheet.add_worksheet(title=worker)
 
+    # сохранить ссылки в g_sheet, в отдельный tsv и print в консоль
+    folder = 'accepted_files'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    path = f'{folder}/accepted_{worker}.tsv'
+    with open(path, 'x') as file:
+        tasks_dict = lex['tasks']
+
+        # первая строка таблицы
+        row = [f'{str(msg.date.date())}', f'{msg.date.time()}', f'{msg.chat.title}', f'@{msg.from_user.username}']
+        spreadsheet.worksheet_by_title(worker).append_table(values=row)
+
+        for i, file_num in enumerate(tasks_dict):
+            row = [i, tasks_dict[file_num].split()[3], urls[i]]
+            print('\t'.join(row), file=file)
+            print(row)
+            await spreadsheet.worksheet_by_title(worker).append_table(values=row)
+
+        # отправить tsv админу
+        await bot.send_document(chat_id=admins[0], document=path)
+    os.remove(path)
 
 
 # admin нажал ❌
@@ -118,7 +152,6 @@ async def reply_decline_reason(msg: Message, bot: Bot):
     data.setdefault(worker, tasks)
     with open(baza, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-
 
     # обновить сообщение у админа и дописать причину отказа
     await bot.edit_message_text(f'❌ Отклонено. Причина:\n{verdict}', orig.chat.id, orig.message_id,

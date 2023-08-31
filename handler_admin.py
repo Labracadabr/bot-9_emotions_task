@@ -8,7 +8,6 @@ import os
 from config import Config, load_config
 # import pygsheets
 # import googleapiclient.errors
-import time
 
 
 # Инициализация

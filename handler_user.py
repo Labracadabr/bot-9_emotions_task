@@ -1,19 +1,14 @@
-import time
 import json
-import requests
-import os
-from aiogram import Router, Bot, F, types
+from aiogram import Router, Bot, F
 from aiogram.filters import Command, StateFilter, or_f
-# from aiogram.types import Message, CallbackQuery
 from bot_logic import log, Access, FSM # dwnld_photo_or_doc
 from config import Config, load_config
 from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
 from settings import admins, baza
 from lexic import lex
 from aiogram.fsm.context import FSMContext
-from aiogram.fsm.state import default_state
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import CallbackQuery, Message, URLInputFile
+from aiogram.types import CallbackQuery, Message
 
 
 # Инициализация всяких ботских штук
@@ -37,12 +32,13 @@ async def process_help_command(message: Message):
 #     await message.answer(lex['ban'])
 
 
-# команда /status
+# команда /status - показать юзеру статус его заданий
 @router.message(Command(commands=['status']))
 async def process_help_command(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
-    log('logs.json', user, '/help')
+    log('logs.json', user, '/status')
 
+    # считать статусы заданий юзера
     with open(baza, 'r') as f:
         data = json.load(f)
 
@@ -79,12 +75,11 @@ async def process_start_command(message: Message, bot: Bot, state: FSMContext):
         f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}')
     log('logs.json', user.id, '/start')
 
-    # бот переходит в состояние ожидания согласие с политикой
-    await state.set_state(FSM.policy)
-
     # приветствие и выдача политики
     await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
     await message.answer(text='С политикой ознакомлен и согласен', reply_markup=keyboard_ok)
+    # бот переходит в состояние ожидания согласие с политикой
+    await state.set_state(FSM.policy)
 
     # сообщить админу, кто стартанул бота
     if str(user.id) not in admins:
@@ -101,11 +96,10 @@ async def process_start_command(message: Message, bot: Bot, state: FSMContext):
             json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-# команда /next
+# команда /next - дать юзеру след задание
 @router.message(Command(commands=['next']))
 async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     user = str(message.from_user.id)
-
     log('logs.json', user, '/next')
 
     # считать статусы заданий юзера
@@ -123,7 +117,7 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     await state.set_state(FSM.ready_for_next)
 
 
-# согласен с политикой ✅
+# юзер согласен с политикой ✅
 @router.callback_query(lambda x: x.data == "ok_pressed", StateFilter(FSM.policy))
 async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     worker = callback.from_user
@@ -179,10 +173,9 @@ async def photo1(msg: Message, bot: Bot, state: FSMContext):
             log('logs.json', user, f'SENT_{sent_file}')
             break
 
-    # меняем статус задания
+    # меняем статус задания и сохраняем
     data[user][sent_file] = ('review', file_id)
     tasks = data[user]
-
     with open(baza, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
@@ -213,7 +206,7 @@ async def photo1(msg: Message, bot: Bot, state: FSMContext):
 
                 await bot.send_document(chat_id=admins[0], document=file_id, caption=text, parse_mode='HTML')
 
-        # сообщения с кнопками (принять или нет)
+        # сообщение с кнопками (✅принять или нет❌)
         await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?'
                                                        f'\n{msg.from_user.full_name} @{msg.from_user.username}', reply_markup=keyboard_admin)
 

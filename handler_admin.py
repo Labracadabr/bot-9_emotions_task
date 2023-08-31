@@ -4,9 +4,13 @@ from settings import admins, book, baza
 from bot_logic import Access, log
 from lexic import lex
 import json
+from config import Config, load_config
+
 
 # Инициализация
 router: Router = Router()
+config: Config = load_config()
+TKN: str = config.tg_bot.token
 
 
 # Забанить юзера по telegram id. Пример сообщения: ban id123456789
@@ -36,17 +40,27 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
             worker = i[2:-1]
             break
 
-    # проставить accept во всех файлах
+    # проставить accept во всех файлах и записать ссылки для скачивания
     with open(baza, 'r') as f:
         data = json.load(f)
+    urls = []
     tasks = data[worker]
     for file in tasks:
         tasks[file][0] = 'accept'
+
+        # добыть ссылку по file_id
+        file_info = await bot.get_file(tasks[file][1])
+        file_url = file_info.file_path
+        url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
+        urls.append(url)
 
     # убрать кнопки админа
     await bot.edit_message_text(f'{msg.text}\n✅ Принято', msg.chat.id, msg.message_id, reply_markup=None)
     # Дать юзеру аппрув
     await bot.send_message(chat_id=worker, text=lex['all_approved']+f'\nid{worker}')
+
+    # for url in urls:
+
 
 
 # admin нажал ❌
@@ -81,9 +95,11 @@ async def reply_decline_reason(msg: Message, bot: Bot):
 
     # записать номера отклоненных файлов
     rejected_files = []
+    txt_for_worker = '\n\n'
     for line in verdict.split('\n'):
         print(line)
         rejected_files.append(line.split()[0])
+        txt_for_worker += 'Задание '+line+'\n'
 
     # проставить reject в нужных файлах
     with open(baza, 'r') as f:
@@ -103,12 +119,14 @@ async def reply_decline_reason(msg: Message, bot: Bot):
     with open(baza, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
+
     # обновить сообщение у админа и дописать причину отказа
     await bot.edit_message_text(f'❌ Отклонено. Причина:\n{verdict}', orig.chat.id, orig.message_id,
                                 reply_markup=None)
     # сообщить юзеру об отказе
-    await bot.send_message(chat_id=worker, text=f'Your file has been rejected. Reason:\n\n<i>{verdict}</i>',
-                           parse_mode='HTML')
+    msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
+    await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+
 
 
 

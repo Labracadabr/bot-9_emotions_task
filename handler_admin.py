@@ -1,12 +1,13 @@
 from aiogram import Router, Bot, F
-from aiogram.types import Message, CallbackQuery
-from settings import admins, book, baza
+from aiogram.types import Message, CallbackQuery, FSInputFile
+from settings import admins, baza
 from bot_logic import Access, log
 from lexic import lex
 import json
 import os
 from config import Config, load_config
-import pygsheets
+# import pygsheets
+# import googleapiclient.errors
 import time
 
 
@@ -24,10 +25,7 @@ async def banner(msg: Message):
     if ban_id.lower().startswith('id'):
         ban_id = ban_id[2:]
 
-    # ведение учета
     log('user_baza.json', 'ban', ban_id)
-    book.setdefault('ban', []).append(ban_id)
-
     await msg.answer(text=f'id {ban_id} banned')
 
 
@@ -37,7 +35,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
     msg = callback.message
 
     # вытащить id из текста сообщения
-    worker = ''
+    worker: str = ''
     for i in str(msg.text).split():
         if i.lower().startswith('id'):
             worker = i[2:-1]
@@ -68,33 +66,40 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
     # Дать юзеру аппрув
     await bot.send_message(chat_id=worker, text=lex['all_approved']+f'id{worker}')
 
-    # сохранить ссылки
-    gc = pygsheets.authorize(service_file='token.json')
-    sheet_url = 'https://docs.google.com/spreadsheets/d/1F2489hUxzXtMJMJuXPE_GKl8eR203HVpNc3bR-sNf7M/edit#gid=0'
-    spreadsheet = gc.open_by_url(sheet_url)
-    spreadsheet.add_worksheet(title=worker)
+    # # сохранить ссылки
+    # gc = pygsheets.authorize(service_file='token.json')
+    # sheet_url = 'https://docs.google.com/spreadsheets/d/1dlZdboea3OAzNpivRxgDiQ6SaW14RjHdfFD-77HwGiQ/edit#gid=0'
+    # spreadsheet = gc.open_by_url(sheet_url)
+    # try:
+    #     spreadsheet.add_worksheet(title=worker)
+    # except googleapiclient.errors.HttpError:
+    #     pass
 
     # сохранить ссылки в g_sheet, в отдельный tsv и print в консоль
     folder = 'accepted_files'
     if not os.path.exists(folder):
         os.makedirs(folder)
     path = f'{folder}/accepted_{worker}.tsv'
-    with open(path, 'x') as file:
+    with open(path, 'w', encoding='UTF-8') as file:
         tasks_dict = lex['tasks']
 
         # первая строка таблицы
-        row = [f'{str(msg.date.date())}', f'{msg.date.time()}', f'{msg.chat.title}', f'@{msg.from_user.username}']
-        spreadsheet.worksheet_by_title(worker).append_table(values=row)
+        row = ['accept_time:', f'{str(msg.date.date())}', f'{msg.date.time()}']
+        print('\t'.join(row), file=file)
+        # spreadsheet.worksheet_by_title(title=worker).append_table(values=row)
 
+        #  остальные строки
         for i, file_num in enumerate(tasks_dict):
-            row = [i, tasks_dict[file_num].split()[3], urls[i]]
-            print('\t'.join(row), file=file)
+            try:
+                row = [file_num, tasks_dict[file_num].split()[3], urls[i]]
+            except IndexError:
+                break
+            print('\t'.join(tuple(map(str, row))), file=file)
             print(row)
-            await spreadsheet.worksheet_by_title(worker).append_table(values=row)
+            # spreadsheet.worksheet_by_title(worker).append_table(values=row)
 
-        # отправить tsv админу
-        await bot.send_document(chat_id=admins[0], document=path)
-    os.remove(path)
+    # отправить tsv админу
+    await bot.send_document(chat_id=admins[0], document=FSInputFile(path=path))
 
 
 # admin нажал ❌

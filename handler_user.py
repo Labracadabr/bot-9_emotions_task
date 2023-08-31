@@ -159,7 +159,7 @@ async def compressed_pic(msg: Message):
 
 
 # юзер отправил норм файл
-@router.message(F.content_type.in_({'document'}))
+@router.message(F.content_type.in_({'document'}), StateFilter(FSM.ready_for_next))
 async def photo1(msg: Message, bot: Bot, state: FSMContext):
     user = str(msg.from_user.id)
 

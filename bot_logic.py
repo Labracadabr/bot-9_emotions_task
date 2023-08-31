@@ -4,7 +4,6 @@ from aiogram.filters import BaseFilter
 from aiogram.filters.state import State, StatesGroup
 import requests
 import os
-from settings import SAVE_DIR
 
 
 # Запись данных item в указанный json file по ключу key

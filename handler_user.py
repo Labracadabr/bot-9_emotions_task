@@ -31,11 +31,11 @@ async def process_help_command(message: Message):
     await message.answer(lex['help'])
 
 
-# чекнуть не в бане ли юзер
-@router.message(Access(book['ban']))
-async def no_access(message: Message):
-    log('logs.json', message.from_user.id, 'ban')
-    await message.answer(lex['ban'])
+# # чекнуть не в бане ли юзер
+# @router.message(Access(book['ban']))
+# async def no_access(message: Message):
+#     log('logs.json', message.from_user.id, 'ban')
+#     await message.answer(lex['ban'])
 
 
 # команда /status
@@ -48,21 +48,23 @@ async def process_help_command(msg: Message, bot: Bot):
         data = json.load(f)
 
     non = rev = rej = acc = 0
-    info = data[user][0]
-    for task in info:
-        print(task)
-        if info[task][0] == 'status':
-            non += 1
-        if info[task][0] == 'review':
-            rev += 1
-        if info[task][0] == 'reject':
-            rej += 1
-        if info[task][0] == 'accept':
-            acc += 1
+    try:
+        info = data[user][0]
+        for task in info:
+            print(task)
+            if info[task][0] == 'status':
+                non += 1
+            if info[task][0] == 'review':
+                rev += 1
+            if info[task][0] == 'reject':
+                rej += 1
+            if info[task][0] == 'accept':
+                acc += 1
+    except KeyError:
+        non = '65.'
 
-    await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
-                         f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
-
+        await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
+                             f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
 
 # команда /start
 @router.message(Command(commands=['start']))
@@ -101,7 +103,7 @@ async def process_start_command(message: Message, bot: Bot, state: FSMContext):
 
 # команда /next
 @router.message(Command(commands=['next']))
-async def process_help_command(message: Message, bot: Bot, state: FSMContext):
+async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     user = str(message.from_user.id)
 
     log('logs.json', user, '/next')
@@ -110,9 +112,10 @@ async def process_help_command(message: Message, bot: Bot, state: FSMContext):
         data = json.load(f)
 
     tasks = data[user]
-    for i in tasks[0]:
-        print(tasks[0][i])
-        if tasks[0][i][0] == 'status':
+    print(tasks)
+    for i in tasks:
+        print(tasks[i])
+        if tasks[i][0] in ('status', 'reject'):
             await bot.send_message(chat_id=user, text=lex['tasks'][i], parse_mode='HTML')
             print('task sent')
             break
@@ -151,7 +154,7 @@ async def alb(msg: Message):
 # юзер отправил сжатый файл: не принимается
 @router.message(F.content_type.in_({'photo', 'video'}))
 async def compressed_pic(msg: Message):
-    log('logs.json', msg.from_user.id, '/file')
+    log('logs.json', msg.from_user.id, 'compressed_file')
     await msg.reply(lex['full_hd'], parse_mode='HTML')
 
 
@@ -168,45 +171,65 @@ async def photo1(msg: Message, bot: Bot, state: FSMContext):
 
     file_extension = tg_file_link.split('.')[-1].lower()
     if file_extension == 'heic':
-        await msg.reply('Я не могу принимать файлы с расширением .heic')
+        await msg.reply('Я не могу принимать файлы с расширением .heic, измените расширение в опциях отправки или камеры.')
 
-    with open(baza, 'r') as f:
-        data = json.load(f)
+    else:
+        with open(baza, 'r') as f:
+            data = json.load(f)
 
-    # вычисляем, какое было прислано задание
-    sent_file = ''
-    tasks = data[user]
-    for i in tasks[0]:
-        print(tasks[0][i])
-        if tasks[0][i][0] in ('status', 'reject'):
-            sent_file = i
-            log('logs.json', user, f'SENT_{sent_file}')
-            break
+        # вычисляем, какое было прислано задание
+        sent_file = ''
+        tasks = data[user]
+        for i in tasks:
+            print(tasks[i])
+            if tasks[i][0] in ('status', 'reject'):
+                sent_file = i
+                log('logs.json', user, f'SENT_{sent_file}')
+                break
 
-    # меняем статус задания
-    data[user][0][sent_file] = ('review', tg_file_link)
+        # меняем статус задания
+        data[user][sent_file] = ('review', tg_file_link)
+        tasks = data[user]
 
-    with open(baza, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        with open(baza, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
-    # если остались еще задания
-    if sent_file != "file65":
-        # Бот ожидает нажатия /next
-        await state.set_state(FSM.done_a_task)
-        await msg.reply(f'Получен файл для задания {sent_file[-2:]}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
+        # проверить остались ли доступные задания
+        more_tasks = False
+        for i in tasks:
+            if tasks[i][0] in ('status', 'reject'):
+                more_tasks = True
+                break
 
-    # если был отправлен последний файл
-    if sent_file == "file65":
-        # Отправить файлЫ админу на проверку
-        for task in data[user][0]:
-            if task[0] == 'review':
-                # Отправить каждый файл, у которого статус - review
-                await bot.send_photo(chat_id=admins[0], photo=task[1], caption=f'{task} id{user}')
-        # сообщения с кнопками (принять или нет)
-        await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?', reply_markup=keyboard_admin)
+        # если остались еще задания
+        if more_tasks:
+            # Бот ожидает нажатия /next
+            await state.set_state(FSM.done_a_task)
+            await msg.reply(f'Получен файл для задания {sent_file[-2:]}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
 
-        log('logs.json', user, 'SENT_ALL_FILES')
-        # уведомить юзера чтоб ожидал проверку
-        await msg.reply(lex['all_sent'])
+        # если был отправлен последний файл
+        if not more_tasks:
+            # Отправить файлЫ админу на проверку
+            for task in tasks:
+                print('adm', task)
+                if tasks[task][0] == 'review':
+                    # Отправить каждый файл, у которого статус == review
+                    url = tasks[task][1]
+                    file = URLInputFile(url=url)
+                    file_extension = url.split('.')[-1].lower()
+                    text = lex['tasks'][task].split('\n')[0]
+
+                    if file_extension in ('jpg', 'jpeg', 'png', 'gif', 'heic'):
+                        await bot.send_photo(chat_id=user, photo=file, caption=text, parse_mode='HTML')
+                    else:
+                        await bot.send_video(chat_id=user, video=file, caption=text, parse_mode='HTML')
+
+                    await bot.send_photo(chat_id=admins[0], photo=task[1], caption=f'{task} id{user}')
+            # сообщения с кнопками (принять или нет)
+            await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?', reply_markup=keyboard_admin)
+
+            log('logs.json', user, 'SENT_ALL_FILES')
+            # уведомить юзера чтоб ожидал проверку
+            await msg.reply(lex['all_sent'])
 
 

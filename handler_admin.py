@@ -81,7 +81,8 @@ async def reply_decline_reason(msg: Message, bot: Bot):
 
     # записать номера отклоненных файлов
     rejected_files = []
-    for line in verdict:
+    for line in verdict.split('\n'):
+        print(line)
         rejected_files.append(line.split()[0])
 
     # проставить reject в нужных файлах
@@ -89,6 +90,7 @@ async def reply_decline_reason(msg: Message, bot: Bot):
         data = json.load(f)
     tasks = data[worker]
     for file in rejected_files:
+        print(file)
         tasks[f'file{file}'][0] = 'reject'
 
     # проставить accept в остальных файлах

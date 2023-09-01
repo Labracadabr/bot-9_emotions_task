@@ -2,7 +2,8 @@
 mngr: str = '@its_dmitrii'
 
 # список id админов
-admins: list[str] = ["992863889"]
+# admins: list[str] = ["992863889"]   # Дима
+admins: list[str] = ["899038082", "992863889"]   # Илья, Дима
 
 # База данных со статусами юзеров. тк я не умею в sql, то это просто json
 baza = 'user_status.json'

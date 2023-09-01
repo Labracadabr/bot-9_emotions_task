@@ -1,7 +1,8 @@
 from aiogram.types import KeyboardButton, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
 
 
-privacy_en: str = "https://drive.google.com/file/d/1RddAFv77L6sL2tvPJBFxA5eI-Zb9Z1AC/view"
+# privacy_en: str = "https://drive.google.com/file/d/1RddAFv77L6sL2tvPJBFxA5eI-Zb9Z1AC/view"
+privacy_ru: str = "https://docs.google.com/document/d/1s9LkBxFPAuKnFxFWKcSNzXvMUG_2hSq7xehG8gZbKt4/edit"
 
 # кнопки как опция ответа
 # button_start = KeyboardButton(text='/start')
@@ -9,7 +10,7 @@ privacy_en: str = "https://drive.google.com/file/d/1RddAFv77L6sL2tvPJBFxA5eI-Zb9
 button_next = KeyboardButton(text='/next')
 button_stat = KeyboardButton(text='/status')
 
-url_button = InlineKeyboardButton(text='Политика конфиденциальности', url=privacy_en)
+url_button = InlineKeyboardButton(text='Политика конфиденциальности', url=privacy_ru)
 privacy_ok = InlineKeyboardButton(text='✅', callback_data='ok_pressed')
 
 admin_ok: InlineKeyboardButton = InlineKeyboardButton(text='✅', callback_data='admin_ok')

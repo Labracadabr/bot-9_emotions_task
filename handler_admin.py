@@ -98,7 +98,8 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
             # spreadsheet.worksheet_by_title(worker).append_table(values=row)
 
     # отправить tsv админу
-    await bot.send_document(chat_id=admins[0], document=FSInputFile(path=path))
+    for i in admins:
+        await bot.send_document(chat_id=i, document=FSInputFile(path=path))
 
 
 # admin нажал ❌

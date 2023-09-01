@@ -24,7 +24,7 @@ async def banner(msg: Message):
     if ban_id.lower().startswith('id'):
         ban_id = ban_id[2:]
 
-    log('user_baza.json', 'ban', ban_id)
+    log('user_status.json', 'ban', ban_id)
     await msg.answer(text=f'id {ban_id} banned')
 
 

@@ -5,7 +5,7 @@ mngr: str = '@its_dmitrii'
 admins: list[str] = ["992863889"]
 
 # База данных со статусами юзеров. тк я не умею в sql, то это просто json
-baza = 'user_baza.json'
+baza = 'user_status.json'
 
 # # игнорить ли сообщения, присланные во время отключения бота
 # ignor: bool = False

@@ -57,8 +57,9 @@ async def process_help_command(msg: Message, bot: Bot):
                 acc += 1
     except KeyError:
         non = '65.'
-
-    await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
+    # await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
+    #                      f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
+    await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n'
                          f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
 
 
@@ -190,7 +191,8 @@ async def photo1(msg: Message, bot: Bot, state: FSMContext):
     if more_tasks:
         # Бот ожидает нажатия /next
         await state.set_state(FSM.done_a_task)
-        await msg.reply(f'Получен файл для задания {sent_file[-2:]}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
+        # await msg.reply(f'Получен файл для задания {sent_file[-2:]}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
+        await msg.reply(text=lex['receive'].format(sent_file[-2:]), reply_markup=keyboard_user)
 
     # если был отправлен последний файл
     if not more_tasks:

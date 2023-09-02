@@ -34,33 +34,45 @@ async def process_help_command(message: Message):
 
 # команда /status - показать юзеру статус его заданий
 @router.message(Command(commands=['status']))
-async def process_help_command(msg: Message, bot: Bot):
+async def process_status_command(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
     log('logs.json', user, '/status')
-
-    # считать статусы заданий юзера
     with open(baza, 'r') as f:
         data = json.load(f)
 
-    non = rev = rej = acc = 0
-    try:
-        info = data[user]
-        for task in info:
-            print(task)
-            if info[task][0] == 'status':
-                non += 1
-            if info[task][0] == 'review':
-                rev += 1
-            if info[task][0] == 'reject':
-                rej += 1
-            if info[task][0] == 'accept':
-                acc += 1
-    except KeyError:
-        non = '65.'
-    # await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n❌ Отклонено - {rej}\n'
-    #                      f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
-    await msg.answer(f'Ваши задания:\n\n✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n'
-                         f'⏳ На проверке - {rev}\n💪 Осталось сделать - {non}')
+    async def get_status(user_id):
+        non = rev = rej = acc = 0
+
+        try:
+            info = data[user_id]
+            for task in info:
+                print(task)
+                if info[task][0] == 'status':
+                    non += 1
+                if info[task][0] == 'review':
+                    rev += 1
+                if info[task][0] == 'reject':
+                    rej += 1
+                if info[task][0] == 'accept':
+                    acc += 1
+        except KeyError:
+            non = '65'
+        return f'✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n⏳ На проверке - {rev}\n💪 Осталось сделать - {non}'
+
+    if user in admins:
+        answer_text = ''
+        for usr in data:
+            usr_stat = await get_status(usr)
+            if not usr_stat.endswith('65'):
+                answer_text += f'\nid{usr}\n{usr_stat}\n'
+        if answer_text:
+            await msg.answer('Статусы всех юзеров, кто отправил хотя бы один файл:\n'+answer_text)
+        else:
+            await msg.answer('Ещё никто ничего не отправил')
+
+    if user not in admins:
+        stat = await get_status(user)
+        await msg.answer(f'Ваши задания:\n\n{stat}')
 
 
 # команда /start
@@ -155,7 +167,7 @@ async def compressed_pic(msg: Message):
 
 # юзер отправил норм файл
 @router.message(F.content_type.in_({'document'}), StateFilter(FSM.ready_for_next))
-async def photo1(msg: Message, bot: Bot, state: FSMContext):
+async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     user = str(msg.from_user.id)
 
     # сохраняем ссылку на файл

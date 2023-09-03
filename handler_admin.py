@@ -16,16 +16,16 @@ config: Config = load_config()
 TKN: str = config.tg_bot.token
 
 
-# Забанить юзера по telegram id. Пример сообщения: ban id123456789
-@router.message(Access(admins), lambda msg: str(msg.text).lower().startswith('ban '))
-async def banner(msg: Message):
-    # вытащить id из текста сообщения
-    ban_id = str(msg.text).split()[-1]
-    if ban_id.lower().startswith('id'):
-        ban_id = ban_id[2:]
-
-    log('user_status.json', 'ban', ban_id)
-    await msg.answer(text=f'id {ban_id} banned')
+# # Забанить юзера по telegram id. Пример сообщения: ban id123456789
+# @router.message(Access(admins), lambda msg: str(msg.text).lower().startswith('ban '))
+# async def banner(msg: Message):
+#     # вытащить id из текста сообщения
+#     ban_id = str(msg.text).split()[-1]
+#     if ban_id.lower().startswith('id'):
+#         ban_id = ban_id[2:]
+#
+#     log('user_status.json', 'ban', ban_id)
+#     await msg.answer(text=f'id {ban_id} banned')
 
 
 # admin нажал ✅
@@ -117,11 +117,11 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
                                 msg.chat.id, msg.message_id, parse_mode='HTML', reply_markup=None)
 
 
-# Причина отказа
+# админ ответил на сообщение
 @router.message(Access(admins), lambda msg: msg.reply_to_message)
-async def reply_decline_reason(msg: Message, bot: Bot):
-    # причина отказа
-    verdict = str(msg.text)
+async def reply_to_msg(msg: Message, bot: Bot):
+    # ответ админа
+    admin_response = str(msg.text)
     # сообщение, на которое отвечаем
     orig = msg.reply_to_message
 
@@ -132,38 +132,49 @@ async def reply_decline_reason(msg: Message, bot: Bot):
             worker = i[2:-1]
             break
 
-    # записать номера отклоненных файлов
-    rejected_files = []
     txt_for_worker = '\n\n'
-    for line in verdict.split('\n'):
-        print(line)
-        rejected_files.append(line.split()[0])
-        txt_for_worker += 'Задание '+line+'\n'
 
-    # проставить reject в нужных файлах
-    with open(baza, 'r') as f:
-        data = json.load(f)
-    tasks = data[worker]
-    for file in rejected_files:
-        print(file)
-        tasks[f'file{file}'][0] = 'reject'
+    # если админ отвечает на вопрос юзера
+    if lex["msg_to_admin"] in orig.text:
+        print('adm reply')
+        await bot.send_message(chat_id=worker, text=lex['msg_from_admin']+txt_for_worker+admin_response)
 
-    # проставить accept в остальных файлах
-    for file in tasks:
-        if tasks[file][0] == 'review':
-            tasks[file][0] = 'accept'
+    # если админ написал причину отказа❌
+    if lex["adm_review"] in orig.text:
+        print('adm reject')
+        # записать номера отклоненных файлов
+        rejected_files = []
+        for line in admin_response.split('\n'):
+            print(line)
+            rejected_files.append(line.split()[0])
+            txt_for_worker += 'Задание '+line+'\n'
 
-    # сохранить статусы заданий
-    data.setdefault(worker, tasks)
-    with open(baza, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+        # обновить сообщение у админа и дописать причину отказа
+        await bot.edit_message_text(f'❌ Отклонено. Причина:\n{admin_response}', orig.chat.id, orig.message_id,
+                                    reply_markup=None)
+        # сообщить юзеру об отказе
+        msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
+        await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
 
-    # обновить сообщение у админа и дописать причину отказа
-    await bot.edit_message_text(f'❌ Отклонено. Причина:\n{verdict}', orig.chat.id, orig.message_id,
-                                reply_markup=None)
-    # сообщить юзеру об отказе
-    msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
-    await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+        # проставить reject в нужных файлах
+        with open(baza, 'r') as f:
+            data = json.load(f)
+        tasks = data[worker]
+        for file in rejected_files:
+            print('file', file, 'rejected')
+            tasks[f'file{file}'][0] = 'reject'
+
+        # проставить accept в остальных файлах
+        for file in tasks:
+            if tasks[file][0] == 'review':
+                tasks[file][0] = 'accept'
+                print(file, 'accepted')
+
+        # сохранить статусы заданий
+        data.setdefault(worker, tasks)
+        with open(baza, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            print(worker, 'status saved')
 
 
 

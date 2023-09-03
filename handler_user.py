@@ -40,13 +40,14 @@ async def process_status_command(msg: Message, bot: Bot):
     with open(baza, 'r') as f:
         data = json.load(f)
 
+    # дать статус заданий по айди юзера
     async def get_status(user_id):
         non = rev = rej = acc = 0
 
         try:
             info = data[user_id]
             for task in info:
-                print(task)
+                # print(task)
                 if info[task][0] == 'status':
                     non += 1
                 if info[task][0] == 'review':
@@ -57,8 +58,9 @@ async def process_status_command(msg: Message, bot: Bot):
                     acc += 1
         except KeyError:
             non = '65'
-        return f'✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n⏳ На проверке - {rev}\n💪 Осталось сделать - {non}'
+        return f'✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n⏳ На проверке - <b>{rev}</b>\n💪 Осталось сделать - {non}'
 
+    # если это админ - показать статус всех юзеров
     if user in admins:
         answer_text = ''
         for usr in data:
@@ -66,13 +68,14 @@ async def process_status_command(msg: Message, bot: Bot):
             if not usr_stat.endswith('65'):
                 answer_text += f'\nid{usr}\n{usr_stat}\n'
         if answer_text:
-            await msg.answer('Статусы всех юзеров, кто отправил хотя бы один файл:\n'+answer_text)
+            await msg.answer('Статусы всех юзеров, кто отправил хотя бы один файл:\n'+answer_text, parse_mode='HTML')
         else:
             await msg.answer('Ещё никто ничего не отправил')
 
+    # простому юзеру показать только его статус
     if user not in admins:
         stat = await get_status(user)
-        await msg.answer(f'Ваши задания:\n\n{stat}')
+        await msg.answer(f'Ваши задания:\n\n{stat}', parse_mode='HTML')
 
 
 # команда /start
@@ -121,13 +124,19 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     tasks = data[user]
 
     # найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
+    more_tasks = False
     for i in tasks:
         if tasks[i][0] in ('status', 'reject'):
+            more_tasks = True
             await bot.send_message(chat_id=user, text=lex['tasks'][i], parse_mode='HTML')
+
+            # бот переходит в состояние ожидания след файла
+            await state.set_state(FSM.ready_for_next)
             break
 
-    # бот переходит в состояние ожидания след файла
-    await state.set_state(FSM.ready_for_next)
+    # если задания кончились
+    if not more_tasks:
+        await bot.send_message(chat_id=user, text=lex['no_more'], parse_mode='HTML')
 
 
 # юзер согласен с политикой ✅
@@ -170,9 +179,6 @@ async def compressed_pic(msg: Message):
 async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     user = str(msg.from_user.id)
 
-    # сохраняем ссылку на файл
-    file_id = msg.document.file_id
-
     with open(baza, 'r') as f:
         data = json.load(f)
 
@@ -180,14 +186,15 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     sent_file = ''
     tasks = data[user]
     for i in tasks:
-        print(tasks[i])
+        # print(tasks[i])
         if tasks[i][0] in ('status', 'reject'):
             sent_file = i
             log('logs.json', user, f'SENT_{sent_file}')
             break
+    print(user, 'sent', sent_file)
 
-    # меняем статус задания и сохраняем
-    data[user][sent_file] = ('review', file_id)
+    # меняем статус задания и сохраняем file_id
+    data[user][sent_file] = ('review', msg.document.file_id)
     tasks = data[user]
     with open(baza, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -203,7 +210,6 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     if more_tasks:
         # Бот ожидает нажатия /next
         await state.set_state(FSM.done_a_task)
-        # await msg.reply(f'Получен файл для задания {sent_file[-2:]}.\nНажмите /next для следующего задания', reply_markup=keyboard_user)
         await msg.reply(text=lex['receive'].format(sent_file[-2:]), reply_markup=keyboard_user)
 
     # если был отправлен последний файл
@@ -221,9 +227,18 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
                 await bot.send_document(chat_id=admins[0], document=file_id, caption=text, parse_mode='HTML')
 
         # сообщение с кнопками (✅принять или нет❌)
-        await bot.send_message(chat_id=admins[0], text=f'Принять ВСЕ файлы от id{user}?'
+        await bot.send_message(chat_id=admins[0], text=f'{lex["adm_review"]} id{user}?'
                                                        f'\n{msg.from_user.full_name} @{msg.from_user.username}', reply_markup=keyboard_admin)
 
         log('logs.json', user, 'SENT_ALL_FILES')
 
 
+# юзер что-то пишет
+@router.message(~Access(admins), F.content_type.in_({'text'}))
+async def usr_txt(msg: Message, bot: Bot):
+    log('logs.json', msg.from_user.id, msg.text)
+
+    # показать админу
+    for i in admins:
+        await bot.send_message(chat_id=i, text=f'{lex["msg_to_admin"]} @{msg.from_user.username} {msg.from_user.full_name}'
+                                               f' id{msg.from_user.id}: \n\n{msg.text}')

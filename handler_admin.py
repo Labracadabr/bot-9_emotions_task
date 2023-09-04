@@ -122,10 +122,11 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
 async def reply_to_msg(msg: Message, bot: Bot):
     # ответ админа
     admin_response = str(msg.text)
-    # сообщение, на которое отвечаем
+    # сообщение, на которое отвечает админ
     orig = msg.reply_to_message
 
     # worker = вытащить id из текста сообщения
+    worker = ''
     txt = str(msg.reply_to_message.text).split()
     for i in txt:
         if i.lower().startswith('id'):
@@ -134,48 +135,75 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
     txt_for_worker = '\n\n'
 
+    # если админ тупит
+    if not worker:
+        await bot.send_message(orig.chat.id, 'На это сообщение не надо отвечать')
+
     # если админ отвечает на вопрос юзера
-    if lex["msg_to_admin"] in orig.text:
+    elif lex["msg_to_admin"] in orig.text:
         print('adm reply')
         await bot.send_message(chat_id=worker, text=lex['msg_from_admin']+txt_for_worker+admin_response)
 
     # если админ написал причину отказа❌
-    if lex["adm_review"] in orig.text:
+    elif lex["adm_review"] in orig.text:
         print('adm reject')
         # записать номера отклоненных файлов
         rejected_files = []
+        correct_format = True
         for line in admin_response.split('\n'):
             print(line)
+            file_num = line.split()[0]
+            # убедиться, что каждая строка начинается с номера задания
+            if not file_num.isnumeric():
+                correct_format = False
+                await bot.send_message(orig.chat.id, 'Неверный формат: каждая новая строка должна начинаться с числа и '
+                                                     'оканчиваться переносом строки.\nНапиши причину отказа снова.')
+                break
             rejected_files.append(line.split()[0])
             txt_for_worker += 'Задание '+line+'\n'
 
-        # обновить сообщение у админа и дописать причину отказа
-        await bot.edit_message_text(f'❌ Отклонено. Причина:\n{admin_response}', orig.chat.id, orig.message_id,
-                                    reply_markup=None)
-        # сообщить юзеру об отказе
-        msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
-        await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+        if correct_format:
+            # обновить сообщение у админа и дописать причину отказа
+            await bot.edit_message_text(f'❌ Отклонено. Причина:\n{admin_response}', orig.chat.id, orig.message_id,
+                                        reply_markup=None)
+            # сообщить юзеру об отказе
+            msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
+            await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
 
-        # проставить reject в нужных файлах
-        with open(baza, 'r') as f:
-            data = json.load(f)
-        tasks = data[worker]
-        for file in rejected_files:
-            print('file', file, 'rejected')
-            tasks[f'file{file}'][0] = 'reject'
+            # проставить reject в отклоненных файлах
+            with open(baza, 'r') as f:
+                data = json.load(f)
+            tasks = data[worker]
+            for file in rejected_files:
+                print('file', file, 'rejected')
+                tasks[f'file{file}'][0] = 'reject'
 
-        # проставить accept в остальных файлах
-        for file in tasks:
-            if tasks[file][0] == 'review':
-                tasks[file][0] = 'accept'
-                print(file, 'accepted')
+            # проставить accept в остальных файлах
+            for file in tasks:
+                if tasks[file][0] == 'review':
+                    tasks[file][0] = 'accept'
+                    print(file, 'accepted')
 
-        # сохранить статусы заданий
-        data.setdefault(worker, tasks)
-        with open(baza, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-            print(worker, 'status saved')
+            # сохранить статусы заданий
+            data.setdefault(worker, tasks)
+            with open(baza, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+                print(worker, 'status saved')
 
 
+# отправить админу файл
+@router.message(Access(admins), lambda x: x.text.lower().startswith('send'))
+async def adm_file(msg: Message, bot: Bot):
+    txt = msg.text.lower()
 
+    if txt == 'send bd':
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza))
+    elif txt == 'send logs':
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path='logs.json'))
+
+
+# админ что-то пишет
+@router.message(Access(admins), F.content_type.in_({'text'}))
+async def adm_txt(msg: Message, bot: Bot):
+    await msg.answer('Куда ты пишешь? Ответь на сообщение с крестиком')
 

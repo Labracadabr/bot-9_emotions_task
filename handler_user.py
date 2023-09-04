@@ -91,25 +91,31 @@ async def process_start_command(message: Message, bot: Bot, state: FSMContext):
         f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}')
     log('logs.json', user.id, '/start')
 
-    # приветствие и выдача политики
-    await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
-    await message.answer(text='С политикой ознакомлен и согласен', reply_markup=keyboard_ok)
-    # бот переходит в состояние ожидания согласие с политикой
-    await state.set_state(FSM.policy)
-
-    # сообщить админу, кто стартанул бота
     if str(user.id) not in admins:
+        # приветствие и выдача политики
+        await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
+        await message.answer(text='С политикой ознакомлен и согласен', reply_markup=keyboard_ok)
+        # бот переходит в состояние ожидания согласие с политикой
+        await state.set_state(FSM.policy)
+        # сообщить админу, кто стартанул бота
         for i in admins:
             await bot.send_message(text=f'Bot started by id{user.id} {user.full_name} @{user.username}',
                                    chat_id=i, disable_notification=True)
+    else:
+        await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки', chat_id=str(user.id))
 
-    # создать учетную запись юзера, если её еще нет
     with open(baza, 'r') as f:
         data = json.load(f)
-    if str(user.id) not in data:
+
+    # админу создать два задания для отладки
+    if str(user.id) in admins:
+        data[str(user.id)] = {"file02": ['status', 'file'], "file03": ['status', 'file']}
+
+    # создать учетную запись юзера, если её еще нет
+    elif str(user.id) not in data:
         data.setdefault(str(user.id), lex['user_account'])
-        with open(baza, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+    with open(baza, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
 
 
 # команда /next - дать юзеру след задание

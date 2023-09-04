@@ -6,6 +6,7 @@ from lexic import lex
 import json
 import os
 from config import Config, load_config
+from aiogram.exceptions import TelegramBadRequest
 # import pygsheets
 # import googleapiclient.errors
 
@@ -198,8 +199,58 @@ async def adm_file(msg: Message, bot: Bot):
 
     if txt == 'send bd':
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza))
+
     elif txt == 'send logs':
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path='logs.json'))
+
+    # отпр тсв со всем что юзер скинул на данный момент
+    elif txt.startswith('send id'):
+        # вытащить id из текста сообщения
+        worker: str = ''
+        for i in txt.split():
+            if i.lower().startswith('id'):
+                worker = i[2:]
+                break
+
+        with open(baza, 'r') as f:
+            data = json.load(f)
+        urls = []
+        tasks = data[worker]
+        for file in tasks:
+            # добыть ссылку по file_id
+            try:
+                file_info = await bot.get_file(tasks[file][1])
+                file_url = file_info.file_path
+                url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
+            except TelegramBadRequest:
+                url = 'unavailable'
+                print('file unavailable')
+
+            urls.append(url)
+
+        folder = 'sent_files'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        path = f'{folder}/sent_{worker}.tsv'
+        with open(path, 'w', encoding='UTF-8') as file:
+            tasks_dict = lex['tasks']
+
+            # первая строка таблицы
+            row = ['create_time:', f'{str(msg.date.date())}', f'{msg.date.time()}']
+            print('\t'.join(row), file=file)
+
+            #  остальные строки
+            for i, file_num in enumerate(tasks_dict):
+                try:
+                    row = [file_num, tasks_dict[file_num].split()[3], urls[i]]
+                except IndexError:
+                    break
+                print('\t'.join(tuple(map(str, row))), file=file)
+                print(row)
+
+        # отправить tsv админу
+        for i in admins:
+            await bot.send_document(chat_id=i, document=FSInputFile(path=path))
 
 
 # админ что-то пишет

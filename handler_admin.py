@@ -1,6 +1,6 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
-from settings import admins, baza_task
+from settings import admins, baza_task, baza_info
 from bot_logic import Access, log
 from lexic import lex
 import json
@@ -51,9 +51,13 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
         print(tasks[file][0])
 
         # добыть ссылку по file_id
-        file_info = await bot.get_file(tasks[file][1])
-        file_url = file_info.file_path
-        url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
+        try:
+            file_info = await bot.get_file(tasks[file][1])
+            file_url = file_info.file_path
+            url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
+        except TelegramBadRequest:
+            url = 'unavailable'
+            print('file unavailable')
         urls.append(url)
 
     # сохранить статусы заданий
@@ -203,6 +207,9 @@ async def adm_file(msg: Message, bot: Bot):
     elif txt == 'send logs':
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path='logs.json'))
 
+    elif txt == 'send info':
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_info))
+
     # отпр тсв со всем что юзер скинул на данный момент
     elif txt.startswith('send id'):
         # вытащить id из текста сообщения
@@ -212,6 +219,7 @@ async def adm_file(msg: Message, bot: Bot):
                 worker = i[2:]
                 break
 
+        #  чтение БД
         with open(baza_task, 'r') as f:
             data = json.load(f)
         urls = []

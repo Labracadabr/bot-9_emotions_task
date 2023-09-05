@@ -1,10 +1,10 @@
 import json
 from aiogram import Router, Bot, F
-from aiogram.filters import Command, StateFilter, or_f
+from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
 from bot_logic import log, Access, FSM # dwnld_photo_or_doc
 from config import Config, load_config
 from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
-from settings import admins, baza
+from settings import admins, baza_task, baza_info, referrals
 from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -21,6 +21,7 @@ storage: MemoryStorage = MemoryStorage()
 # команда /help
 @router.message(Command(commands=['help']))
 async def process_help_command(message: Message):
+    print(message.from_user.id, '/help')
     log('logs.json', message.from_user.id, '/help')
     await message.answer(lex['help'])
 
@@ -36,8 +37,9 @@ async def process_help_command(message: Message):
 @router.message(Command(commands=['status']))
 async def process_status_command(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
+    print(user, '/status')
     log('logs.json', user, '/status')
-    with open(baza, 'r') as f:
+    with open(baza_task, 'r') as f:
         data = json.load(f)
 
     # дать статус заданий по айди юзера
@@ -78,54 +80,80 @@ async def process_status_command(msg: Message, bot: Bot):
         await msg.answer(f'Ваши задания:\n\n{stat}', parse_mode='HTML')
 
 
-# команда /start
-@router.message(Command(commands=['start']))
-async def process_start_command(message: Message, bot: Bot, state: FSMContext):
+# deep-link команда /start
+@router.message(CommandStart())
+async def start_command(message: Message, command: CommandObject, state: FSMContext, bot: Bot):
+    referral = command.args
     user = message.from_user
     msg_time = message.date.strftime("%d/%m/%Y %H:%M")
-    # print(message.json(indent=4, exclude_none=True))
-    print(f'Bot started by id{user.id} {user.full_name} @{user.username}')
+    user_id = str(message.from_user.id)
+    print(referral)
+    print(f'Bot start id{user.id} {user.full_name} @{user.username} from:{referral}')
 
-    # логи
-    log('logs.json', 'logs',
-        f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}')
-    log('logs.json', user.id, '/start')
+    # чтение БД
+    with open(baza_task, 'r', encoding='utf-8') as f:
+        data_tsk = json.load(f)
+    with open(baza_info, 'r', encoding='utf-8') as f:
+        data_inf = json.load(f)
 
-    if str(user.id) not in admins:
+    # если это админ, то создать два задания для отладки
+    if user_id in admins:
+        print('adm start')
+        await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки', chat_id=user_id)
+        data_tsk[user_id] = {"file02": ['status', 'file'], "file03": ['status', 'file']}
+
+    # если юзер без реферала и его раньше не было в БД: не проходит
+    elif user_id not in data_inf and referral not in referrals:
+        print(user_id, 'new user wrong ref:', referral)
+        await bot.send_message(chat_id=user_id, text=lex['no_ref'])
+
+    # создать учетную запись юзера, если её еще нет и реферал есть
+    elif user_id not in data_inf and referral in referrals:
+        print(user_id, 'new user from:', referral)
+        data_tsk.setdefault(user_id, lex['user_account'])
+        info = {
+            "referral": referral,
+            "first_start": msg_time,
+            "accept_date": None,
+            "real_name": None,
+            "tg_username": user.username,
+            "tg_fullname": user.full_name,
+            "tasks": None,
+            "last_sent": None,
+        },
+        data_inf.setdefault(user_id, info)
+
         # приветствие и выдача политики
         await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
         await message.answer(text='С политикой ознакомлен и согласен', reply_markup=keyboard_ok)
-        # бот переходит в состояние ожидания согласие с политикой
+        # бот переходит в состояние ожидания согласия с политикой
         await state.set_state(FSM.policy)
         # сообщить админу, кто стартанул бота
         for i in admins:
-            await bot.send_message(text=f'Bot started by id{user.id} {user.full_name} @{user.username}',
-                                   chat_id=i, disable_notification=True)
-    else:
-        await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки', chat_id=str(user.id))
+            await bot.send_message(
+                text=f'Bot started by id{user.id} {user.full_name} @{user.username} from: {referral}',
+                chat_id=i, disable_notification=True)
+    # логи
+    log('logs.json', 'logs',
+        f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}, start={referral}')
+    log('logs.json', user.id, f'/start={referral}')
 
-    with open(baza, 'r') as f:
-        data = json.load(f)
-
-    # админу создать два задания для отладки
-    if str(user.id) in admins:
-        data[str(user.id)] = {"file02": ['status', 'file'], "file03": ['status', 'file']}
-
-    # создать учетную запись юзера, если её еще нет
-    elif str(user.id) not in data:
-        data.setdefault(str(user.id), lex['user_account'])
-    with open(baza, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    # сохранить новые данные
+    with open(baza_task, 'w', encoding='utf-8') as f:
+        json.dump(data_tsk, f, indent=2, ensure_ascii=False)
+    with open(baza_info, 'w', encoding='utf-8') as f:
+        json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
 
 # команда /next - дать юзеру след задание
 @router.message(Command(commands=['next']))
 async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     user = str(message.from_user.id)
+    print(user, '/next')
     log('logs.json', user, '/next')
 
     # считать статусы заданий юзера
-    with open(baza, 'r') as f:
+    with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
     tasks = data[user]
 
@@ -149,6 +177,7 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 @router.callback_query(lambda x: x.data == "ok_pressed", StateFilter(FSM.policy))
 async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     worker = callback.from_user
+    print(worker.id, 'privacy_ok')
     log('logs.json', worker.id, 'privacy_ok')
 
     # выдать инструкцию и примеры
@@ -185,7 +214,7 @@ async def compressed_pic(msg: Message):
 async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     user = str(msg.from_user.id)
 
-    with open(baza, 'r') as f:
+    with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
     # вычисляем, какое было прислано задание
@@ -202,7 +231,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     # меняем статус задания и сохраняем file_id
     data[user][sent_file] = ('review', msg.document.file_id)
     tasks = data[user]
-    with open(baza, 'w', encoding='utf-8') as f:
+    with open(baza_task, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
     # проверить остались ли доступные задания

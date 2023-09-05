@@ -1,6 +1,6 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
-from settings import admins, baza
+from settings import admins, baza_task
 from bot_logic import Access, log
 from lexic import lex
 import json
@@ -42,7 +42,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
             break
 
     # проставить accept во всех файлах и записать ссылки для скачивания
-    with open(baza, 'r') as f:
+    with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
     urls = []
     tasks = data[worker]
@@ -58,7 +58,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
 
     # сохранить статусы заданий
     data.setdefault(worker, tasks)
-    with open(baza, 'w', encoding='utf-8') as f:
+    with open(baza_task, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
     # убрать кнопки админа
@@ -172,7 +172,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
             await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
 
             # проставить reject в отклоненных файлах
-            with open(baza, 'r') as f:
+            with open(baza_task, 'r', encoding='utf-8') as f:
                 data = json.load(f)
             tasks = data[worker]
             for file in rejected_files:
@@ -187,7 +187,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
             # сохранить статусы заданий
             data.setdefault(worker, tasks)
-            with open(baza, 'w', encoding='utf-8') as f:
+            with open(baza_task, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 print(worker, 'status saved')
 
@@ -198,7 +198,7 @@ async def adm_file(msg: Message, bot: Bot):
     txt = msg.text.lower()
 
     if txt == 'send bd':
-        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza))
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_task))
 
     elif txt == 'send logs':
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path='logs.json'))
@@ -212,7 +212,7 @@ async def adm_file(msg: Message, bot: Bot):
                 worker = i[2:]
                 break
 
-        with open(baza, 'r') as f:
+        with open(baza_task, 'r') as f:
             data = json.load(f)
         urls = []
         tasks = data[worker]

@@ -1,7 +1,7 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
-from settings import admins, baza_task, baza_info
-from bot_logic import Access, log
+from settings import admins, baza_task, baza_info, logs
+from bot_logic import Access, log, id_from_text
 from lexic import lex
 import json
 import os
@@ -34,12 +34,9 @@ TKN: str = config.tg_bot.token
 async def admin_ok(callback: CallbackQuery, bot:Bot):
     msg = callback.message
 
-    # вытащить id из текста сообщения
-    worker: str = ''
-    for i in str(msg.text).split():
-        if i.lower().startswith('id'):
-            worker = i[2:-1]
-            break
+    # worker = вытащить id из текста сообщения
+    worker = id_from_text(msg.text)
+    log(logs, worker, 'admin_accept')
 
     # проставить accept во всех файлах и записать ссылки для скачивания
     with open(baza_task, 'r', encoding='utf-8') as f:
@@ -69,6 +66,8 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
     await bot.edit_message_text(f'{msg.text}\n✅ Принято', msg.chat.id, msg.message_id, reply_markup=None)
     # Дать юзеру аппрув
     await bot.send_message(chat_id=worker, text=lex['all_approved']+f'id{worker}')
+    log(logs, worker, 'admin_accept')
+
 
     # # сохранить ссылки
     # gc = pygsheets.authorize(service_file='token.json')
@@ -131,23 +130,12 @@ async def reply_to_msg(msg: Message, bot: Bot):
     orig = msg.reply_to_message
 
     # worker = вытащить id из текста сообщения
-    worker = ''
-    txt = str(msg.reply_to_message.text).split()
-    for i in txt:
-        if i.lower().startswith('id'):
-            worker = i[2:-1]
-            break
-
+    worker = id_from_text(orig.text)
     txt_for_worker = '\n\n'
 
     # если админ тупит
     if not worker:
         await bot.send_message(orig.chat.id, 'На это сообщение не надо отвечать')
-
-    # если админ отвечает на вопрос юзера
-    elif lex["msg_to_admin"] in orig.text:
-        print('adm reply')
-        await bot.send_message(chat_id=worker, text=lex['msg_from_admin']+txt_for_worker+admin_response)
 
     # если админ написал причину отказа❌
     elif lex["adm_review"] in orig.text:
@@ -195,9 +183,14 @@ async def reply_to_msg(msg: Message, bot: Bot):
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 print(worker, 'status saved')
 
+    # если админ отвечает сообщение юзера
+    elif worker:
+        print('adm reply')
+        await bot.send_message(chat_id=worker, text=lex['msg_from_admin']+txt_for_worker+admin_response)
+
 
 # отправить админу файл
-@router.message(Access(admins), lambda x: x.text.lower().startswith('send'))
+@router.message(Access(admins), lambda x: x.text, lambda x: x.text.lower().startswith('send'))
 async def adm_file(msg: Message, bot: Bot):
     txt = msg.text.lower()
 
@@ -222,6 +215,7 @@ async def adm_file(msg: Message, bot: Bot):
         #  чтение БД
         with open(baza_task, 'r') as f:
             data = json.load(f)
+
         urls = []
         tasks = data[worker]
         for file in tasks:

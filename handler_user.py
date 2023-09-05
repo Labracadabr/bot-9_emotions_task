@@ -97,7 +97,7 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         data_inf = json.load(f)
 
     # если это админ, то создать два задания для отладки
-    if not user_id in admins:
+    if user_id in admins:
         print('adm start')
         await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки /next', chat_id=user_id)
         data_tsk[user_id] = {"file02": ['status', 'file'], "file03": ['status', 'file']}

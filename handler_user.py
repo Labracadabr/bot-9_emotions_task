@@ -116,6 +116,8 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             "first_start": msg_time,
             "accept_date": None,
             "real_name": None,
+            "age": None,
+            "gender": None,
             "tg_username": user.username,
             "tg_fullname": user.full_name,
             "tasks": None,
@@ -251,6 +253,10 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     if not more_tasks:
         # уведомить юзера чтоб ожидал проверку
         await msg.reply(lex['all_sent'])
+        # # спросить возраст
+        # await state.set_state(FSM.age)
+        # await msg.reply(lex['age'])
+
         # Отправить файлЫ админу на проверку
         for task in tasks:
             print('adm', task)
@@ -266,6 +272,66 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
                                                        f'\n{msg.from_user.full_name} @{msg.from_user.username}', reply_markup=keyboard_admin)
 
         log('logs.json', user, 'SENT_ALL_FILES')
+
+
+# команда /cancel - отменить отправленный файл
+@router.message(Command(commands=['cancel']))
+async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
+    user = str(msg.from_user.id)
+    print(user, '/cancel')
+    log('logs.json', user, '/cancel')
+    with open(baza_task, 'r') as f:
+        data = json.load(f)
+    if user in data:
+        await bot.send_message(chat_id=user, text=lex['cancel'])
+        # Бот ожидает номера заданий
+        await state.set_state(FSM.cancelation)
+
+
+# удаление отмененных файлов
+@router.message(F.content_type.in_({'text'}), StateFilter(FSM.cancelation))
+async def cancel(msg: Message, bot: Bot, state: FSMContext):
+    user = str(msg.from_user.id)
+
+    # обработать номера заданий
+    nums_to_cancel = []
+    for num in msg.text.split():
+        if num.isnumeric() and len(num) == 2:
+            nums_to_cancel.append(num)
+        else:
+            await msg.reply(lex['cancel_wrong_form'])
+            break
+
+    # если все номера указаны верно
+    if len(msg.text.split()) == len(nums_to_cancel):
+        # прочитать данные из БД
+        with open(baza_task, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        tasks = data[user]
+
+        # если это задание на проверке, то обнулить
+        cancelled, not_found = [], []
+        for num in nums_to_cancel:
+            try:
+                if tasks[f'file{num}'][0] == 'review':
+                    tasks[f'file{num}'] = ["status", "file"]
+                    cancelled.append(num)
+                else:
+                    not_found.append(num)
+            except KeyError:
+                not_found.append(num)
+
+        # сохранить статусы заданий
+        data.setdefault(user, tasks)
+        with open(baza_task, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        print(user, 'files cancelled', cancelled)
+
+        # уведомить юзера о результате
+        await msg.reply(text=lex['cancel_ok']+', '.join(cancelled))
+        if not_found:
+            await msg.answer(text=lex['cancel_not_found']+', '.join(not_found))
+
 
 
 # юзер что-то пишет

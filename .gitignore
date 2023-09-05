@@ -4,6 +4,8 @@ fix.py
 test.py
 logs.json
 user_status.json
+user_info.json
+tst.py
 txt
 handlers
 token.json
@@ -12,6 +14,7 @@ aaa.tsv
 main.py
 accepted_files
 sent_files
+
 
 
 # Byte-compiled / optimized / DLL files

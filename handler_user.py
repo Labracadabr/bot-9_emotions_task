@@ -97,9 +97,9 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         data_inf = json.load(f)
 
     # если это админ, то создать два задания для отладки
-    if user_id in admins:
+    if not user_id in admins:
         print('adm start')
-        await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки', chat_id=user_id)
+        await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки /next', chat_id=user_id)
         data_tsk[user_id] = {"file02": ['status', 'file'], "file03": ['status', 'file']}
 
     # если юзер без реферала и его раньше не было в БД: не проходит
@@ -111,18 +111,19 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
     elif user_id not in data_inf and referral in referrals:
         print(user_id, 'new user from:', referral)
         data_tsk.setdefault(user_id, lex['user_account'])
-        info = {
-            "referral": referral,
-            "first_start": msg_time,
-            "accept_date": None,
-            "real_name": None,
-            "age": None,
-            "gender": None,
-            "tg_username": user.username,
-            "tg_fullname": user.full_name,
-            "tasks": None,
-            "last_sent": None,
-        },
+
+        # создать запись ПД
+        print(user_id, 'pd created')
+        info = lex['user_pd']
+        info['referral'] = referral
+        info['first_start'] = msg_time
+        info['tg_username'] = message.from_user.username
+        info['tg_fullname'] = message.from_user.full_name
+        print(info)
+
+        data_inf.setdefault(user_id, info)
+        with open(baza_info, 'w', encoding='utf-8') as f:
+            json.dump(data_inf, f, indent=2, ensure_ascii=False)
         data_inf.setdefault(user_id, info)
 
         # приветствие и выдача политики
@@ -253,9 +254,6 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     if not more_tasks:
         # уведомить юзера чтоб ожидал проверку
         await msg.reply(lex['all_sent'])
-        # # спросить возраст
-        # await state.set_state(FSM.age)
-        # await msg.reply(lex['age'])
 
         # Отправить файлЫ админу на проверку
         for task in tasks:
@@ -274,6 +272,125 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         log('logs.json', user, 'SENT_ALL_FILES')
 
 
+# команда /personal - заполнить ПД
+@router.message(Command(commands=['personal']))
+async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
+    user = str(msg.from_user.id)
+    print(user, msg.text)
+    log('logs.json', user, msg.text)
+    # чтение БД
+    with open(baza_info, 'r', encoding='utf-8') as f:
+        data_inf = json.load(f)
+
+    # проверить есть ли его ПД в БД
+    try:
+        data_inf[user]
+    except KeyError:
+        # создать запись ПД
+        print(user, 'pd created')
+        info = lex['user_pd']
+        info['first_start'] = msg.date.strftime("%d/%m/%Y %H:%M")
+        info['tg_username'] = msg.from_user.username
+        info['tg_fullname'] = msg.from_user.full_name
+
+        data_inf.setdefault(user, info)
+        with open(baza_info, 'w', encoding='utf-8') as f:
+            json.dump(data_inf, f, indent=2, ensure_ascii=False)
+
+    # проверить заполнены ли перс данные
+    if not data_inf[user]['gender']:
+        # спросить возраст
+        await state.set_state(FSM.age)
+        await msg.answer(lex['age'])
+        print(user, 'ask age')
+    else:
+        await msg.answer(lex['pd_ok'])
+
+
+# юзер отправляет возраст
+@router.message(F.content_type.in_({'text'}), StateFilter(FSM.age))
+async def cancel(msg: Message, bot: Bot, state: FSMContext):
+    user = str(msg.from_user.id)
+    age = msg.text
+    print(user, age)
+    log('logs.json', user, age)
+
+    # проверка правильного ввода
+    if age.isnumeric() and len(age) == 2:
+        # чтение БД
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+
+        # сохранить возраст в БД
+        data_inf[user]['age'] = age
+        with open(baza_info, 'w', encoding='utf-8') as f:
+            json.dump(data_inf, f, indent=2, ensure_ascii=False)
+        # спросить пол
+        await state.set_state(FSM.gender)
+        await msg.answer(text=lex['gender'])
+        print(user, 'ask gender')
+
+    else:
+        await msg.reply(text=lex['age_bad'])
+
+
+# юзер отправляет пол
+@router.message(F.content_type.in_({'text'}), StateFilter(FSM.gender))
+async def cancel(msg: Message, bot: Bot, state: FSMContext):
+    user = str(msg.from_user.id)
+    gender = msg.text.lower()
+    print(user, gender)
+    log('logs.json', user, gender)
+
+    # проверка правильного ввода
+    if gender == 'm' or gender == 'f':
+        # чтение БД
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+
+        # сохранить пол в БД
+        data_inf[user]['gender'] = gender
+        with open(baza_info, 'w', encoding='utf-8') as f:
+            json.dump(data_inf, f, indent=2, ensure_ascii=False)
+
+        # если асессор из TD, то спросить фио
+        if data_inf[user]['referral']:
+            if data_inf[user]['referral'].lower() == 'td':
+                await state.set_state(FSM.fio)
+                await msg.answer(text=lex['fio'])
+                print(user, 'fio')
+            else:
+                await msg.answer(text=lex['pd_ok'])
+
+    else:
+        await msg.reply(text=lex['gender_bad'])
+
+
+# юзер отправляет ФИО
+@router.message(F.content_type.in_({'text'}), StateFilter(FSM.fio))
+async def cancel(msg: Message, bot: Bot, state: FSMContext):
+    user = str(msg.from_user.id)
+    fio = msg.text
+    print(user, fio)
+    log('logs.json', user, fio)
+
+    # проверка правильного ввода
+    if len(fio.split()) == 3 and all(isinstance(item, str) for item in fio):
+        # чтение БД
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+
+        # сохранить пол в БД
+        data_inf[user]['fio'] = fio
+        with open(baza_info, 'w', encoding='utf-8') as f:
+            json.dump(data_inf, f, indent=2, ensure_ascii=False)
+
+        await msg.answer(text=lex['pd_ok'])
+
+    else:
+        await msg.reply(text=lex['fio_bad'])
+
+
 # команда /cancel - отменить отправленный файл
 @router.message(Command(commands=['cancel']))
 async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
@@ -283,9 +400,16 @@ async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
     with open(baza_task, 'r') as f:
         data = json.load(f)
     if user in data:
-        await bot.send_message(chat_id=user, text=lex['cancel'])
-        # Бот ожидает номера заданий
-        await state.set_state(FSM.cancelation)
+        # проверить, не отправлены ли все файлы уже на проверку
+        statuses = set(data[user][i][0] for i in data[user])
+        if 'status' in statuses or 'reject' in statuses:
+            await bot.send_message(chat_id=user, text=lex['cancel'])
+            # Бот ожидает номера заданий
+            await state.set_state(FSM.cancelation)
+        else:
+            await bot.send_message(chat_id=user, text=lex['cancel_fail'])
+    else:
+        await bot.send_message(chat_id=user, text=lex['cancel_fail'])
 
 
 # удаление отмененных файлов
@@ -331,7 +455,6 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
         await msg.reply(text=lex['cancel_ok']+', '.join(cancelled))
         if not_found:
             await msg.answer(text=lex['cancel_not_found']+', '.join(not_found))
-
 
 
 # юзер что-то пишет

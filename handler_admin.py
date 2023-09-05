@@ -257,8 +257,7 @@ async def adm_file(msg: Message, bot: Bot):
                 print(row)
 
         # отправить tsv админу
-        for i in admins:
-            await bot.send_document(chat_id=i, document=FSInputFile(path=path))
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=path))
 
 
 # админ что-то пишет

@@ -17,6 +17,18 @@ def log(file, key, item):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
+# айди из текста
+def id_from_text(text):
+    user_id = ''
+    for word in text.split():
+        if word.lower().startswith('id'):
+            for symbol in word:
+                if symbol.isnumeric():
+                    user_id += symbol
+            break
+    return user_id
+
+
 # Фильтр, проверяющий доступ юзера
 class Access(BaseFilter):
     def __init__(self, access: list[str]) -> None:

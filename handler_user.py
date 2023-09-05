@@ -52,11 +52,11 @@ async def process_status_command(msg: Message, bot: Bot):
                 # print(task)
                 if info[task][0] == 'status':
                     non += 1
-                if info[task][0] == 'review':
+                elif info[task][0] == 'review':
                     rev += 1
-                if info[task][0] == 'reject':
+                elif info[task][0] == 'reject':
                     rej += 1
-                if info[task][0] == 'accept':
+                elif info[task][0] == 'accept':
                     acc += 1
         except KeyError:
             non = '65'
@@ -101,6 +101,9 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         print('adm start')
         await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки /next', chat_id=user_id)
         data_tsk[user_id] = {"file02": ['status', 'file'], "file03": ['status', 'file']}
+        # сохранить новые данные
+        with open(baza_task, 'w', encoding='utf-8') as f:
+            json.dump(data_tsk, f, indent=2, ensure_ascii=False)
 
     # если юзер без реферала и его раньше не было в БД: не проходит
     elif user_id not in data_inf and referral not in referrals:
@@ -136,16 +139,20 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             await bot.send_message(
                 text=f'Bot started by id{user.id} {user.full_name} @{user.username} from: {referral}',
                 chat_id=i, disable_notification=True)
-    # логи
-    log('logs.json', 'logs',
-        f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}, start={referral}')
-    log('logs.json', user.id, f'/start={referral}')
+        # сохранить новые данные
+        with open(baza_task, 'w', encoding='utf-8') as f:
+            json.dump(data_tsk, f, indent=2, ensure_ascii=False)
+        with open(baza_info, 'w', encoding='utf-8') as f:
+            json.dump(data_inf, f, indent=2, ensure_ascii=False)
+        # логи
+        log('logs.json', 'logs',
+            f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}, start={referral}')
+        log('logs.json', user.id, f'/start={referral}')
 
-    # сохранить новые данные
-    with open(baza_task, 'w', encoding='utf-8') as f:
-        json.dump(data_tsk, f, indent=2, ensure_ascii=False)
-    with open(baza_info, 'w', encoding='utf-8') as f:
-        json.dump(data_inf, f, indent=2, ensure_ascii=False)
+    # если юзер уже в БД и просто снова нажал старт
+    else:
+        await bot.send_message(text=lex['start_again'], chat_id=user_id, reply_markup=keyboard_user)
+        log('logs.json', user.id, f'start_again')
 
 
 # команда /next - дать юзеру след задание
@@ -254,7 +261,8 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     if not more_tasks:
         # уведомить юзера чтоб ожидал проверку
         await msg.reply(lex['all_sent'])
-
+        log('logs.json', user, 'SENT_ALL_FILES')
+        print(user, 'SENT_ALL_FILES')
         # Отправить файлЫ админу на проверку
         for task in tasks:
             print('adm', task)
@@ -269,12 +277,10 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         await bot.send_message(chat_id=admins[0], text=f'{lex["adm_review"]} id{user}?'
                                                        f'\n{msg.from_user.full_name} @{msg.from_user.username}', reply_markup=keyboard_admin)
 
-        log('logs.json', user, 'SENT_ALL_FILES')
-
 
 # команда /personal - заполнить ПД
 @router.message(Command(commands=['personal']))
-async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
+async def cancel_command(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
     print(user, msg.text)
     log('logs.json', user, msg.text)
@@ -303,8 +309,11 @@ async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
         await state.set_state(FSM.age)
         await msg.answer(lex['age'])
         print(user, 'ask age')
+        log('logs.json', user, 'ask age')
+
     else:
         await msg.answer(lex['pd_ok'])
+        log('logs.json', user, 'pd ok')
 
 
 # юзер отправляет возраст
@@ -329,6 +338,7 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
         await state.set_state(FSM.gender)
         await msg.answer(text=lex['gender'])
         print(user, 'ask gender')
+        log('logs.json', user, 'ask gender')
 
     else:
         await msg.reply(text=lex['age_bad'])
@@ -358,6 +368,7 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
             if data_inf[user]['referral'].lower() == 'td':
                 await state.set_state(FSM.fio)
                 await msg.answer(text=lex['fio'])
+                log('logs.json', user, 'ask gender')
                 print(user, 'fio')
             else:
                 await msg.answer(text=lex['pd_ok'])
@@ -374,18 +385,19 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
     print(user, fio)
     log('logs.json', user, fio)
 
-    # проверка правильного ввода
+    # проверка правильности ввода
     if len(fio.split()) == 3 and all(isinstance(item, str) for item in fio):
         # чтение БД
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)
 
-        # сохранить пол в БД
+        # сохранить фио в БД
         data_inf[user]['fio'] = fio
         with open(baza_info, 'w', encoding='utf-8') as f:
             json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
         await msg.answer(text=lex['pd_ok'])
+        log('logs.json', user, 'fio ok')
 
     else:
         await msg.reply(text=lex['fio_bad'])

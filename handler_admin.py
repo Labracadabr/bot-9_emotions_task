@@ -156,9 +156,20 @@ async def reply_to_msg(msg: Message, bot: Bot):
             txt_for_worker += 'Задание '+line+'\n'
 
         if correct_format:
+            # прочитать данные юзера из пд
+            with open(baza_info, 'r', encoding='utf-8') as f:
+                data_inf = json.load(f)
+            ref = data_inf[worker]['referral']
+            username = data_inf[worker]['tg_username']
+            fullname = data_inf[worker]['tg_fullname']
+
             # обновить сообщение у админа и дописать причину отказа
             await bot.edit_message_text(f'❌ Отклонено. Причина:\n{admin_response}', orig.chat.id, orig.message_id,
                                         reply_markup=None)
+            # продублировать всем админам
+            for i in admins:
+                await bot.send_message(chat_id=i, text=f'❌ Отклонено.\nid{worker} {fullname} @{username} ref: {ref}'
+                                                       f'\nПричина:\n{admin_response}')
             # сообщить юзеру об отказе
             msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
             await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)

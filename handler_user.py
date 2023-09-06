@@ -387,12 +387,11 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
             else:
                 await msg.answer(text=lex['pd_ok'])
                 log('logs.json', user, 'gender ok')
-                await state.set_state(FSM.done)
+                await state.clear()
         else:
             await msg.answer(text=lex['pd_ok'])
             log('logs.json', user, 'gender ok')
-            await state.set_state(FSM.done)
-
+            await state.clear()
     else:
         await msg.reply(text=lex['gender_bad'])
 
@@ -418,7 +417,7 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 
         await msg.answer(text=lex['pd_ok'])
         log('logs.json', user, 'fio ok')
-        await state.set_state(FSM.done)
+        await state.clear()
     else:
         await msg.reply(text=lex['fio_bad'])
 

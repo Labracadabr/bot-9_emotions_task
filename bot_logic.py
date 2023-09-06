@@ -50,7 +50,6 @@ class FSM(StatesGroup):
     fio = State()       #
     ready_for_next = State()    #
     done_a_task = State()       #
-    done = State()       #
     all_accepted = State()      # Юзер всё скинул и ждет оплаты
 
 

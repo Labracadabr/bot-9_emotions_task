@@ -183,13 +183,14 @@ async def reply_to_msg(msg: Message, bot: Bot):
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 print(worker, 'status saved')
 
-    # если админ отвечает сообщение юзера
+    # если админ отвечает на сообщение юзера
     elif worker:
         print('adm reply')
-        await bot.send_message(chat_id=worker, text=lex['msg_from_admin']+txt_for_worker+admin_response)
+        for i in worker+admins:
+            await bot.send_message(chat_id=i, text=lex['msg_from_admin']+txt_for_worker+admin_response)
 
 
-# отправить админу файл
+# админ запрашивает файл
 @router.message(Access(admins), lambda x: x.text, lambda x: x.text.lower().startswith('send'))
 async def adm_file(msg: Message, bot: Bot):
     txt = msg.text.lower()
@@ -198,7 +199,7 @@ async def adm_file(msg: Message, bot: Bot):
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_task))
 
     elif txt == 'send logs':
-        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path='logs.json'))
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=logs))
 
     elif txt == 'send info':
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_info))

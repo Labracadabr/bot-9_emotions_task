@@ -259,10 +259,13 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
     # если был отправлен последний файл
     if not more_tasks:
-        # уведомить юзера чтоб ожидал проверку
+        # уведомить юзера, админов, внести в логи и в консоль
         await msg.reply(lex['all_sent'])
         log('logs.json', user, 'SENT_ALL_FILES')
         print(user, 'SENT_ALL_FILES')
+        for i in admins:
+            await bot.send_message(chat_id=i, text=f'Юзер отправил все файлы - id{user}'
+                                                   f'\n{msg.from_user.full_name} @{msg.from_user.username}')
         # Отправить файлЫ админу на проверку
         for task in tasks:
             print('adm', task)
@@ -273,9 +276,14 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
                 await bot.send_document(chat_id=admins[0], document=file_id, caption=text, parse_mode='HTML')
 
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+
+        ref = data_inf[user]['referral']
         # сообщение с кнопками (✅принять или нет❌)
         await bot.send_message(chat_id=admins[0], text=f'{lex["adm_review"]} id{user}?'
-                                                       f'\n{msg.from_user.full_name} @{msg.from_user.username}', reply_markup=keyboard_admin)
+                                                       f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}',
+                               reply_markup=keyboard_admin)
 
 
 # команда /personal - заполнить ПД
@@ -303,7 +311,13 @@ async def cancel_command(msg: Message, state: FSMContext):
         with open(baza_info, 'w', encoding='utf-8') as f:
             json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
-    # проверить заполнены ли перс данные
+    # проверить заполнены ли уже перс данные
+    try:
+        data_inf[user]['gender']
+        print('try')
+    except KeyError:
+        data_inf[user].setdefault('gender', None)
+        print('exc')
     if not data_inf[user]['gender']:
         # спросить возраст
         await state.set_state(FSM.age)
@@ -372,6 +386,12 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
                 print(user, 'fio')
             else:
                 await msg.answer(text=lex['pd_ok'])
+                log('logs.json', user, 'gender ok')
+                await state.set_state(FSM.done)
+        else:
+            await msg.answer(text=lex['pd_ok'])
+            log('logs.json', user, 'gender ok')
+            await state.set_state(FSM.done)
 
     else:
         await msg.reply(text=lex['gender_bad'])
@@ -398,7 +418,7 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 
         await msg.answer(text=lex['pd_ok'])
         log('logs.json', user, 'fio ok')
-
+        await state.set_state(FSM.done)
     else:
         await msg.reply(text=lex['fio_bad'])
 
@@ -470,8 +490,16 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 
 
 # юзер что-то пишет
+@router.message(StateFilter(FSM.done))
+async def usr_txt(msg: Message, bot: Bot, state: FSMContext):
+    await msg.answer(text='Ваши файлы сейчас на проверке')
+    log('logs.json', msg.from_user.id, 'done')
+    await state.clear()
+
+
+# юзер что-то пишет2
 @router.message(~Access(admins), F.content_type.in_({'text'}))
-async def usr_txt(msg: Message, bot: Bot):
+async def usr_txt2(msg: Message, bot: Bot):
     log('logs.json', msg.from_user.id, msg.text)
 
     # показать админу

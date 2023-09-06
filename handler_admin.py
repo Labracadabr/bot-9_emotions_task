@@ -186,7 +186,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
     # если админ отвечает на сообщение юзера
     elif worker:
         print('adm reply')
-        for i in worker+admins:
+        # отпр ответ юзеру и всем админам
+        for i in [worker]+admins:
             await bot.send_message(chat_id=i, text=lex['msg_from_admin']+txt_for_worker+admin_response)
 
 

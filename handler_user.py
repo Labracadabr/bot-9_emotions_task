@@ -274,7 +274,8 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
                 file_id = tasks[task][1]
                 text = lex['tasks'][task].split('\n')[0]
 
-                await bot.send_document(chat_id=admins[0], document=file_id, caption=text, parse_mode='HTML')
+                await bot.send_document(chat_id=admins[0], document=file_id, caption=text, parse_mode='HTML')  # Крис
+                await bot.send_document(chat_id=admins[1], document=file_id, caption=text, parse_mode='HTML')  # Илья
 
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)
@@ -493,7 +494,7 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 async def usr_txt2(msg: Message, bot: Bot):
     log('logs.json', msg.from_user.id, msg.text)
 
-    # показать админу
+    # показать админам
     for i in admins:
         await bot.send_message(chat_id=i, text=f'{lex["msg_to_admin"]} @{msg.from_user.username} {msg.from_user.full_name}'
                                                f' id{msg.from_user.id}: \n\n{msg.text}')

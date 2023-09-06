@@ -259,13 +259,18 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
     # если был отправлен последний файл
     if not more_tasks:
+        # прочитать реферал из бд
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+        ref = data_inf[user]['referral']
+
         # уведомить юзера, админов, внести в логи и в консоль
         await msg.reply(lex['all_sent'])
         log('logs.json', user, 'SENT_ALL_FILES')
         print(user, 'SENT_ALL_FILES')
         for i in admins:
             await bot.send_message(chat_id=i, text=f'Юзер отправил все файлы - id{user}'
-                                                   f'\n{msg.from_user.full_name} @{msg.from_user.username}')
+                                                   f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}')
         # Отправить файлЫ админу на проверку
         for task in tasks:
             print('adm', task)

@@ -490,11 +490,12 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 
         # уведомить юзера о результате
         await msg.reply(text=lex['cancel_ok']+', '.join(cancelled))
+        await state.clear()
         if not_found:
             await msg.answer(text=lex['cancel_not_found']+', '.join(not_found))
 
 
-# юзер что-то пишет2
+# юзер что-то пишет
 @router.message(~Access(admins), F.content_type.in_({'text'}))
 async def usr_txt2(msg: Message, bot: Bot):
     log('logs.json', msg.from_user.id, msg.text)

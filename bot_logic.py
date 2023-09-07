@@ -44,13 +44,15 @@ class Access(BaseFilter):
 class FSM(StatesGroup):
     # Состояния, в которых будет находиться бот в разные моменты взаимодействия с юзером
     policy = State()            # Состояние ожидания соглашения с policy
-    cancelation = State()       #
-    age = State()       #
-    gender = State()       #
-    fio = State()       #
+    cancelation = State()       # Отмена отправки
+    age = State()               # Заполнение перс данных
+    gender = State()            # Заполнение перс данных
+    fio = State()               # Заполнение перс данных
     ready_for_next = State()    #
     done_a_task = State()       #
     all_accepted = State()      # Юзер всё скинул и ждет оплаты
+    password = State()          # бот просит пароль
+    delete = State()            # Админ стирает чью-то учетную запись
 
 
 # # скачать в SAVE_DIR фото или файл

@@ -1,12 +1,15 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from settings import admins, baza_task, baza_info, logs
-from bot_logic import Access, log, id_from_text
+from bot_logic import Access, log, id_from_text, FSM
 from lexic import lex
 import json
 import os
 from config import Config, load_config
 from aiogram.exceptions import TelegramBadRequest
+from aiogram.filters import StateFilter
+from aiogram.fsm.context import FSMContext
+
 # import pygsheets
 # import googleapiclient.errors
 
@@ -159,6 +162,20 @@ async def reply_to_msg(msg: Message, bot: Bot):
             # прочитать данные юзера из пд
             with open(baza_info, 'r', encoding='utf-8') as f:
                 data_inf = json.load(f)
+            # if worker not in data_inf:
+            #     print(worker, 'new user from:', None)
+            #     data_tsk.setdefault(worker, lex['user_account'])
+            #
+            #     # создать запись ПД
+            #     print(user_id, 'pd created')
+            #     info = lex['user_pd']
+            #     info['referral'] = None
+            #     info['first_start'] = None
+            #     info['tg_username'] = message.from_user.username
+            #     info['tg_fullname'] = message.from_user.full_name
+            #     print(info)
+            #     data_inf.setdefault(worker, info)
+
             ref = data_inf[worker]['referral']
             username = data_inf[worker]['tg_username']
             fullname = data_inf[worker]['tg_fullname']
@@ -202,28 +219,82 @@ async def reply_to_msg(msg: Message, bot: Bot):
             await bot.send_message(chat_id=i, text=lex['msg_from_admin']+txt_for_worker+admin_response)
 
 
+# админ просит обнулить юзера
+@router.message(Access(admins), lambda x: x.text, lambda x: x.text.lower() == 'del')
+async def adm_del(msg: Message, state: FSMContext):
+    await msg.answer(text='Введи пароль')
+    await state.set_state(FSM.password)
+
+
+# бот спрашивает пароль
+@router.message(Access(admins), StateFilter(FSM.password))
+async def adm_passw(msg: Message, state: FSMContext):
+    if msg.text == TKN[:4]:
+        await msg.answer(text='Введи id, который нужно стереть')
+        await state.set_state(FSM.delete)
+    else:
+        await msg.answer(text='Неверный пароль')
+
+
+# админ обнуляет юзера
+@router.message(Access(admins), StateFilter(FSM.delete))
+async def adm_del(msg: Message, bot: Bot, state: FSMContext):
+    # worker = вытащить id из текста сообщения
+    worker = id_from_text(msg.text.lower())
+
+    # чтение бд
+    with open(baza_task, 'r', encoding='utf-8') as f1, open(baza_info, 'r', encoding='utf-8') as f2:
+        data_tsk = json.load(f1)
+        data_inf = json.load(f2)
+
+    # скинуть бекап и удалить данные
+    await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_task))
+    await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_info))
+    try:
+        del data_tsk[worker]
+    except KeyError:
+        pass
+    else:
+        log(logs, worker, 'tasks deleted')
+        print(worker, 'tasks deleted')
+    try:
+        del data_inf[worker]
+    except KeyError:
+        pass
+    else:
+        log(logs, worker, 'info deleted')
+        print(worker, 'info deleted')
+
+    # сохранить изменения
+    with open(baza_task, 'w', encoding='utf-8') as f1, open(baza_info, 'w', encoding='utf-8') as f2:
+        json.dump(data_tsk, f1, indent=2, ensure_ascii=False)
+        json.dump(data_inf, f2, indent=2, ensure_ascii=False)
+
+    await msg.answer(lex['deleted'])
+    await state.clear()
+
+
 # админ запрашивает файл
 @router.message(Access(admins), lambda x: x.text, lambda x: x.text.lower().startswith('send'))
 async def adm_file(msg: Message, bot: Bot):
+    user = str(msg.from_user.id)
     txt = msg.text.lower()
 
     if txt == 'send bd':
-        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_task))
-
+        await bot.send_document(chat_id=user, document=FSInputFile(path=baza_task))
     elif txt == 'send logs':
-        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=logs))
-
+        await bot.send_document(chat_id=user, document=FSInputFile(path=logs))
     elif txt == 'send info':
-        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_info))
+        await bot.send_document(chat_id=user, document=FSInputFile(path=baza_info))
+    elif txt == 'send all':
+        await bot.send_document(chat_id=user, document=FSInputFile(path=baza_task))
+        await bot.send_document(chat_id=user, document=FSInputFile(path=baza_info))
+        await bot.send_document(chat_id=user, document=FSInputFile(path=logs))
 
     # отпр тсв со всем что юзер скинул на данный момент
     elif txt.startswith('send id'):
-        # вытащить id из текста сообщения
-        worker: str = ''
-        for i in txt.split():
-            if i.lower().startswith('id'):
-                worker = i[2:]
-                break
+        # worker = вытащить id из текста сообщения
+        worker = id_from_text(txt)
 
         #  чтение БД
         with open(baza_task, 'r') as f:

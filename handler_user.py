@@ -172,6 +172,9 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     for i in tasks:
         if tasks[i][0] in ('status', 'reject'):
             more_tasks = True
+            # with open(tasks_tsv, 'r', encoding='utf-8') as f:
+            #     all_tasks = f.readlines()
+            # next_task =
             await bot.send_message(chat_id=user, text=lex['tasks'][i], parse_mode='HTML')
 
             # бот переходит в состояние ожидания след файла
@@ -366,13 +369,13 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 
 # юзер отправляет пол
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.gender))
-async def cancel(msg: Message, bot: Bot, state: FSMContext):
+async def cancel(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
     gender = msg.text.lower()
     print(user, gender)
     log('logs.json', user, gender)
 
-    # проверка правильного ввода
+    # проверка правильности ввода
     if gender == 'm' or gender == 'f':
         # чтение БД
         with open(baza_info, 'r', encoding='utf-8') as f:
@@ -404,14 +407,15 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 
 # юзер отправляет ФИО
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.fio))
-async def cancel(msg: Message, bot: Bot, state: FSMContext):
+async def cancel(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
     fio = msg.text
     print(user, fio)
     log('logs.json', user, fio)
+    slov = len(fio.split())
 
     # проверка правильности ввода
-    if len(fio.split()) == 3 and all(isinstance(item, str) for item in fio):
+    if slov == 3 or slov == 2 and all(isinstance(item, str) for item in fio):
         # чтение БД
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)

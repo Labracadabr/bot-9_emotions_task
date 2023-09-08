@@ -152,8 +152,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
             # убедиться, что каждая строка начинается с номера задания
             if not file_num.isnumeric():
                 correct_format = False
-                await bot.send_message(orig.chat.id, 'Неверный формат: каждая новая строка должна начинаться с числа и '
-                                                     'оканчиваться переносом строки.\nНапиши причину отказа снова.')
+                await bot.send_message(orig.chat.id, lex['wrong_rej_form'])
                 break
             rejected_files.append(line.split()[0])
             txt_for_worker += 'Задание '+line+'\n'
@@ -230,6 +229,7 @@ async def adm_del(msg: Message, state: FSMContext):
 @router.message(Access(admins), StateFilter(FSM.password))
 async def adm_passw(msg: Message, state: FSMContext):
     if msg.text == TKN[:4]:
+        await msg.delete()
         await msg.answer(text='Введи id, который нужно стереть')
         await state.set_state(FSM.delete)
     else:
@@ -238,7 +238,7 @@ async def adm_passw(msg: Message, state: FSMContext):
 
 # админ обнуляет юзера
 @router.message(Access(admins), StateFilter(FSM.delete))
-async def adm_del(msg: Message, bot: Bot, state: FSMContext):
+async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
     # worker = вытащить id из текста сообщения
     worker = id_from_text(msg.text.lower())
 
@@ -274,25 +274,37 @@ async def adm_del(msg: Message, bot: Bot, state: FSMContext):
     await state.clear()
 
 
-# админ запрашивает файл
-@router.message(Access(admins), lambda x: x.text, lambda x: x.text.lower().startswith('send'))
-async def adm_file(msg: Message, bot: Bot):
+# админ что-то пишет
+@router.message(Access(admins), F.content_type.in_({'text'}))
+async def adm_msg(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
-    txt = msg.text.lower()
+    txt = msg.text
 
-    if txt == 'send bd':
+    if txt.startswith(TKN[:4]):
+        # рассылка всем юзерам
+        with open(baza_task, 'r', encoding='utf-8') as f1:
+            data_tsk = json.load(f1)
+        for i in data_tsk:
+            try:
+                await bot.send_message(chat_id=i, text=txt[4:], parse_mode='HTML')
+                print('msg_sent', i)
+            except:
+                print('not_found', i)
+
+    # админ запрашивает файл
+    elif txt.lower() == 'send bd':
         await bot.send_document(chat_id=user, document=FSInputFile(path=baza_task))
-    elif txt == 'send logs':
-        await bot.send_document(chat_id=user, document=FSInputFile(path=logs))
-    elif txt == 'send info':
+    elif txt.lower() == 'send info':
         await bot.send_document(chat_id=user, document=FSInputFile(path=baza_info))
-    elif txt == 'send all':
+    elif txt.lower() == 'send logs':
+        await bot.send_document(chat_id=user, document=FSInputFile(path=logs))
+    elif txt.lower() == 'send all':
         await bot.send_document(chat_id=user, document=FSInputFile(path=baza_task))
         await bot.send_document(chat_id=user, document=FSInputFile(path=baza_info))
         await bot.send_document(chat_id=user, document=FSInputFile(path=logs))
 
     # отпр тсв со всем что юзер скинул на данный момент
-    elif txt.startswith('send id'):
+    elif txt.lower().startswith('send id'):
         # worker = вытащить id из текста сообщения
         worker = id_from_text(txt)
 
@@ -336,6 +348,8 @@ async def adm_file(msg: Message, bot: Bot):
 
         # отправить tsv админу
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=path))
+    else:
+        await msg.answer('Куда ты пишешь? Ответь на сообщение с крестиком')
 
 
 # админ что-то пишет

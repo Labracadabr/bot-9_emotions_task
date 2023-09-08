@@ -173,11 +173,25 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
         if tasks[i][0] in ('status', 'reject'):
             more_tasks = True
             # with open(tasks_tsv, 'r', encoding='utf-8') as f:
-            #     all_tasks = f.readlines()
-            # next_task =
-            await bot.send_message(chat_id=user, text=lex['tasks'][i], parse_mode='HTML')
+            #     next_task = []
+            #     for line in f.readlines():
+            #         splited_line = line.split('\t')
+            #         if splited_line[0] == i:
+            #             next_task = splited_line
+            #             break
+            # # print(next_task)
+            # path = next_task[2]
+            # extension = path.split('.')[-1]
+            # if extension in ('jpg', 'jpeg', 'png', 'gif', 'heic'):
+            #     print('photo')
+            #     await bot.send_photo(chat_id=user, photo=URLInputFile(path), caption=next_task[1], parse_mode='HTML')
+            # else:
+            #     print('vid')
+            #     await bot.send_video(chat_id=user, video=URLInputFile(path), caption=next_task[1], parse_mode='HTML')
 
             # бот переходит в состояние ожидания след файла
+            await bot.send_message(chat_id=user, text=lex['tasks'][i].replace('\t', '\n'), parse_mode='HTML')
+
             await state.set_state(FSM.ready_for_next)
             break
 

@@ -1,9 +1,11 @@
 import json
-from aiogram.types import Message
 from aiogram.filters import BaseFilter
 from aiogram.filters.state import State, StatesGroup
-import requests
 import os
+from settings import baza_task, baza_info, tasks_tsv
+from lexic import lex
+from aiogram.exceptions import TelegramBadRequest
+from aiogram.types import Message, CallbackQuery, FSInputFile
 
 
 # Запись данных item в указанный json file по ключу key
@@ -45,32 +47,80 @@ class FSM(StatesGroup):
     # Состояния, в которых будет находиться бот в разные моменты взаимодействия с юзером
     policy = State()            # Состояние ожидания соглашения с policy
     cancelation = State()       # Отмена отправки
-    age = State()               # Заполнение перс данных
-    gender = State()            # Заполнение перс данных
-    fio = State()               # Заполнение перс данных
     ready_for_next = State()    #
     done_a_task = State()       #
     all_accepted = State()      # Юзер всё скинул и ждет оплаты
     password = State()          # бот просит пароль
     delete = State()            # Админ стирает чью-то учетную запись
+    age = State()               # Заполнение перс данных
+    gender = State()            # Заполнение перс данных
+    fio = State()               # Заполнение перс данных
 
 
-# # скачать в SAVE_DIR фото или файл
-# async def dwnld_photo_or_doc(msg, bot, worker, tkn):
-#     # получение url файла
-#     if msg.document:
-#         file_id = msg.document.file_id
-#     else:
-#         file_id = msg.photo[-1].file_id
-#     file_info = await bot.get_file(file_id)
-#     file_url = file_info.file_path
-#
-#     # скачивание файла
-#     msg_time = str(msg.date.date())+'_'+str(msg.date.time()).replace(':', '-')
-#     tg_file_link = f'https://api.telegram.org/file/bot{tkn}/{file_url}'
-#     response = requests.get(tg_file_link)
-#     file_path = os.path.join(SAVE_DIR, f'{msg_time}_id{str(worker.id)}_{file_info.file_path.split("/")[-1]}')
-#     with open(file_path, 'wb') as f:
-#         f.write(response.content)
-#     print('file ok')
-#     # return tg_file_link
+async def get_tsv(TKN, bot, msg, worker):
+    #  чтение БД
+    with open(baza_task, 'r') as f:
+        data = json.load(f)
+
+    urls = []
+    tasks = data[worker]
+    for file in tasks:
+        # добыть ссылку по file_id
+        try:
+            file_info = await bot.get_file(tasks[file][1])
+            file_url = file_info.file_path
+            url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
+        except TelegramBadRequest:
+            url = 'unavailable'
+            print(file, 'file unavailable')
+
+        urls.append(url)
+
+    folder = 'sent_files'
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+    path = f'{folder}/sent_{worker}.tsv'
+    with open(path, 'w', encoding='UTF-8') as file:
+        tasks_dict = lex['tasks']
+
+        # первая строка таблицы
+        row = ['create_time:', f'{str(msg.date.date())}', f'{msg.date.time()}']
+        # print('\t'.join(row), file=file)
+
+        #  остальные строки
+        for i, file_num in enumerate(tasks_dict):
+            # print(tasks_dict[file_num])
+            try:
+                row = (file_num, tasks_dict[file_num].split('> ')[1].split('\t')[0], urls[i])
+            except IndexError:
+                break
+            print('\t'.join(map(str, row)), file=file)
+            # print(row)
+    # вернуть путь к тсв
+    return path
+
+
+async def accept_user(TKN, bot, worker):
+    # проставить accept во всех файлах и записать ссылки для скачивания
+    with open(baza_task, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    urls = []
+    tasks = data[worker]
+    for file in tasks:
+        tasks[file][0] = 'accept'
+        print(tasks[file][0])
+
+        # добыть ссылку по file_id
+        try:
+            file_info = await bot.get_file(tasks[file][1])
+            file_url = file_info.file_path
+            url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
+        except TelegramBadRequest:
+            url = 'unavailable'
+            print('file unavailable')
+        urls.append(url)
+
+    # сохранить статусы заданий
+    data.setdefault(worker, tasks)
+    with open(baza_task, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)

@@ -11,6 +11,7 @@ admins: list[str] = ["2137731767", "899038082", "992863889"]   # Кристин�
 baza_task = 'user_status.json'
 baza_info = 'user_info.json'
 logs = 'logs.json'
+tasks_tsv = 'tasks.tsv'
 
 # каналы сбора
 referrals = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'airplane', 'one_more')

@@ -4,6 +4,7 @@ from aiogram import Bot, Dispatcher
 from config import Config, load_config
 import handler_admin
 import handler_user
+import handler_pd
 
 
 # Функция конфигурирования и запуска бота
@@ -19,6 +20,7 @@ async def main():
     dp: Dispatcher = Dispatcher(storage=storage)
 
     # Регистрируем роутеры в диспетчере
+    dp.include_router(handler_pd.router)
     dp.include_router(handler_user.router)
     dp.include_router(handler_admin.router)
     # import test

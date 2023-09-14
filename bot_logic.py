@@ -101,24 +101,15 @@ async def get_tsv(TKN, bot, msg, worker):
 
 
 async def accept_user(TKN, bot, worker):
-    # проставить accept во всех файлах и записать ссылки для скачивания
+    # проставить accept во всех файлах
     with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
-    urls = []
     tasks = data[worker]
+
+    # изменить статусы
     for file in tasks:
         tasks[file][0] = 'accept'
         print(tasks[file][0])
-
-        # добыть ссылку по file_id
-        try:
-            file_info = await bot.get_file(tasks[file][1])
-            file_url = file_info.file_path
-            url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
-        except TelegramBadRequest:
-            url = 'unavailable'
-            print('file unavailable')
-        urls.append(url)
 
     # сохранить статусы заданий
     data.setdefault(worker, tasks)

@@ -125,11 +125,11 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         await message.answer(text='С политикой ознакомлен и согласен', reply_markup=keyboard_ok)
         # бот переходит в состояние ожидания согласия с политикой
         await state.set_state(FSM.policy)
-        # # сообщить админу, кто стартанул бота
-        # for i in admins:
-        #     await bot.send_message(
-        #         text=f'Bot started by id{user.id} {user.full_name} @{user.username} from: {referral}',
-        #         chat_id=i, disable_notification=True)
+        # сообщить админу, кто стартанул бота
+        for i in admins:
+            await bot.send_message(
+                text=f'Bot started by id{user.id} {user.full_name} @{user.username} from: {referral}',
+                chat_id=i, disable_notification=True)
         # сохранить новые данные
         with open(baza_task, 'w', encoding='utf-8') as f:
             json.dump(data_tsk, f, indent=2, ensure_ascii=False)

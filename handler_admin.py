@@ -271,7 +271,10 @@ async def adm_msg(msg: Message, bot: Bot):
         # принять все файлы
         await accept_user(TKN, bot, worker)
         log(logs, worker, 'admin_accept')
-        await msg.answer(f'✅ Приняты файлы от id{worker}')
+        #  сообщить админам
+        for i in admins:
+            await bot.send_message(
+                text=f'✅ Приняты файлы от id{worker}', chat_id=i, disable_notification=True)
 
     # отпр тсв со всем что юзер скинул на данный момент
     elif txt.lower().startswith('send id'):

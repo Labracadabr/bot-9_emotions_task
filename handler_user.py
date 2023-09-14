@@ -96,17 +96,8 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
     with open(baza_info, 'r', encoding='utf-8') as f:
         data_inf = json.load(f)
 
-    # если это админ, то создать два задания для отладки
-    if user_id in admins:
-        print('adm start')
-        await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки /next', chat_id=user_id)
-        data_tsk[user_id] = {"file02": ['status', 'file'], "file03": ['status', 'file']}
-        # сохранить новые данные
-        with open(baza_task, 'w', encoding='utf-8') as f:
-            json.dump(data_tsk, f, indent=2, ensure_ascii=False)
-
     # если юзер без реферала и его раньше не было в БД: не проходит
-    elif user_id not in data_inf and referral not in referrals:
+    if user_id not in data_inf and referral not in referrals:
         print(user_id, 'new user wrong ref:', referral)
         await bot.send_message(chat_id=user_id, text=lex['no_ref'])
 

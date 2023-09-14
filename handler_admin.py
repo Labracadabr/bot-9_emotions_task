@@ -283,6 +283,21 @@ async def adm_msg(msg: Message, bot: Bot):
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=path))
         log(logs, worker, 'adm get_tsv')
 
+    # если это админ, то создать два задания для отладки
+    elif txt.lower() == 'adm start':
+        # чтение БД
+        with open(baza_task, 'r', encoding='utf-8') as f:
+            data_tsk = json.load(f)
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+
+        print('adm start')
+        await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки /next', chat_id=user)
+        data_tsk[user] = {"file01": ['status', 'file'], "file02": ['status', 'file']}
+        # сохранить новые данные
+        with open(baza_task, 'w', encoding='utf-8') as f:
+            json.dump(data_tsk, f, indent=2, ensure_ascii=False)
+
     else:
         await msg.answer('Куда ты пишешь? Ответь на сообщение с крестиком')
 

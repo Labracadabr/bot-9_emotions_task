@@ -140,8 +140,10 @@ async def reply_to_msg(msg: Message, bot: Bot):
                 ref = username = fullname = '?'
 
             # обновить сообщение у админа и дописать причину отказа
-            await bot.edit_message_text(f'❌ Отклонено. Причина:\n{admin_response}', orig.chat.id, orig.message_id,
-                                        reply_markup=None)
+            if orig.from_user.is_bot:
+                await bot.edit_message_text(f'❌ Отклонено. Причина:\n{admin_response}', orig.chat.id, orig.message_id,
+                                            reply_markup=None)
+
             # продублировать всем админам
             for i in admins:
                 await bot.send_message(chat_id=i, text=f'❌ Отклонено.\nid{worker} {fullname} @{username} ref: {ref}'

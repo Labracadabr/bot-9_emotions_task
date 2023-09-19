@@ -1,7 +1,7 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from settings import admins, baza_task, baza_info, logs
-from bot_logic import Access, log, id_from_text, FSM, get_tsv, accept_user
+from bot_logic import Access, log, id_from_text, FSM, get_tsv, accept_user, send_files
 from lexic import lex
 import json
 import os
@@ -33,7 +33,7 @@ TKN: str = config.tg_bot.token
 
 
 # admin нажал ✅
-@router.callback_query(Access(admins), lambda x: x.data == 'admin_ok')
+@router.callback_query(Access(admins), F.data == 'admin_ok')
 async def admin_ok(callback: CallbackQuery, bot:Bot):
     msg = callback.message
 
@@ -41,7 +41,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
     worker = id_from_text(msg.text)
 
     # принять все файлы
-    await accept_user(TKN, bot, worker)
+    await accept_user(worker)
     log(logs, worker, 'admin_accept')
 
     # убрать кнопки админа
@@ -70,6 +70,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
 @router.callback_query(Access(admins), lambda x: x.data == 'admin_no')
 async def admin_no(callback: CallbackQuery, bot: Bot):
     msg = callback.message
+    log(logs, str(msg.from_user.id), 'admin_no')
 
     # обновить сообщение у админа и убрать кнопки
     await bot.edit_message_text(f'{msg.text}\n\n❌ Отклонено. Напиши причину отказа '
@@ -82,7 +83,7 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
 
 
 # админ ответил на сообщение
-@router.message(Access(admins), lambda msg: msg.reply_to_message)
+@router.message(Access(admins), F.reply_to_message)
 async def reply_to_msg(msg: Message, bot: Bot):
     # ответ админа
     admin_response = str(msg.text)
@@ -181,7 +182,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
 
 # админ просит обнулить юзера
-@router.message(Access(admins), lambda x: x.text, lambda x: x.text.lower() == 'del')
+@router.message(Access(admins), F.text, F.text.lower() == 'del')
 async def adm_del(msg: Message, state: FSMContext):
     await msg.answer(text='Введи пароль')
     await state.set_state(FSM.password)
@@ -271,7 +272,7 @@ async def adm_msg(msg: Message, bot: Bot):
         worker = id_from_text(txt)
 
         # принять все файлы
-        await accept_user(TKN, bot, worker)
+        await accept_user(worker)
         log(logs, worker, 'admin_accept')
         #  сообщить админам
         for i in admins:
@@ -288,6 +289,19 @@ async def adm_msg(msg: Message, bot: Bot):
         await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=path))
         log(logs, worker, 'adm get_tsv')
 
+    # отпр файлы юзера, прим сообщения: files id12345 review
+    elif txt.lower().startswith('files id'):
+        # worker = вытащить id из текста сообщения
+        worker = id_from_text(msg.text)
+        status = txt.lower().split()[-1]
+        output = await send_files(worker, status)
+        await msg.answer(text=f'Отправляю файлы юзера id{worker} в статаусе {status}')
+        for i in output:
+            file_id, task_message = i
+            await bot.send_document(chat_id=admins[0], document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
+        log(logs, worker, f'{status} files received')
+
+
     # если это админ, то создать два задания для отладки
     elif txt.lower() == 'adm start':
         # чтение БД
@@ -303,12 +317,17 @@ async def adm_msg(msg: Message, bot: Bot):
         with open(baza_task, 'w', encoding='utf-8') as f:
             json.dump(data_tsk, f, indent=2, ensure_ascii=False)
 
+    elif id_from_text(txt):
+        if lex["adm_review"] in txt:
+            await msg.answer('Можешь написать отказ ответом на свое сообщение')
+        else:
+            await msg.answer(f'Ответь на свое сообщение, и я покажу его юзеру id{id_from_text(txt)}')
     else:
-        await msg.answer('Куда ты пишешь? Ответь на сообщение с крестиком')
+        await msg.answer('Команда не распознана')
 
 
 # админ что-то пишет
 @router.message(Access(admins), F.content_type.in_({'text'}))
-async def adm_txt(msg: Message, bot: Bot):
-    await msg.answer('Куда ты пишешь? Ответь на сообщение с крестиком')
+async def adm_txt(msg: Message):
+    await msg.answer('Команда не распознана')
 

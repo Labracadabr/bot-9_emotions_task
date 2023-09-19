@@ -1,10 +1,10 @@
 import json
 from aiogram import Router, Bot, F
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
-from bot_logic import log, Access, FSM # dwnld_photo_or_doc
+from bot_logic import log, Access, FSM, id_from_text, send_files # dwnld_photo_or_doc
 from config import Config, load_config
 from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
-from settings import admins, baza_task, baza_info, referrals, tasks_tsv
+from settings import admins, validators, baza_task, baza_info, referrals, tasks_tsv, logs
 from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -62,22 +62,22 @@ async def process_status_command(msg: Message, bot: Bot):
             non = '65'
         return f'✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n⏳ На проверке - <b>{rev}</b>\n💪 Осталось сделать - {non}'
 
-    # если это админ - показать статус всех юзеров
-    if user in admins:
-        answer_text = ''
-        for usr in data:
-            usr_stat = await get_status(usr)
-            if not usr_stat.endswith('65'):
-                answer_text += f'\nid{usr}\n{usr_stat}\n'
-        if answer_text:
-            await msg.answer('Статусы всех юзеров, кто отправил хотя бы один файл:\n'+answer_text, parse_mode='HTML')
-        else:
-            await msg.answer('Ещё никто ничего не отправил')
-
-    # простому юзеру показать только его статус
-    if user not in admins:
-        stat = await get_status(user)
-        await msg.answer(f'Ваши задания:\n\n{stat}', parse_mode='HTML')
+    # # если это админ - показать статус всех юзеров
+    # if user in admins:
+    #     answer_text = ''
+    #     for usr in data:
+    #         usr_stat = await get_status(usr)
+    #         if not usr_stat.endswith('65'):
+    #             answer_text += f'\nid{usr}\n{usr_stat}\n'
+    #     if answer_text:
+    #         await msg.answer('Статусы всех юзеров, кто отправил хотя бы один файл:\n'+answer_text, parse_mode='HTML')
+    #     else:
+    #         await msg.answer('Ещё никто ничего не отправил')
+    #
+    # # простому юзеру показать только его статус
+    # if user not in admins:
+    stat = await get_status(user)
+    await msg.answer(f'Ваши задания:\n\n{stat}', parse_mode='HTML')
 
 
 # deep-link команда /start
@@ -188,7 +188,7 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 
 
 # юзер согласен с политикой ✅
-@router.callback_query(lambda x: x.data == "ok_pressed", StateFilter(FSM.policy))
+@router.callback_query(F.data == "ok_pressed", StateFilter(FSM.policy))
 async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     worker = callback.from_user
     print(worker.id, 'privacy_ok')
@@ -209,7 +209,7 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
 
 
 # юзер отправил альбом: не принимается
-@router.message(lambda msg: msg.media_group_id)
+@router.message(F.media_group_id)
 async def alb(msg: Message):
     worker = msg.from_user
     log('logs.json', worker.id, 'album')
@@ -226,8 +226,14 @@ async def compressed_pic(msg: Message):
 # юзер отправил норм файл
 @router.message(F.content_type.in_({'document'}), StateFilter(FSM.ready_for_next))
 async def file_ok(msg: Message, bot: Bot, state: FSMContext):
-    user = str(msg.from_user.id)
+    # # отклонить если файл тяжелее 50 мб
+    # if msg.document.file_size > 50000000:
+    #     print('size', msg.document.file_size)
+    #     await msg.answer(text='Файлы тяжелее 50 Мегабайт не принимаются')
+    #     return
 
+    # чтение БД
+    user = str(msg.from_user.id)
     with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
@@ -263,6 +269,16 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
     # если был отправлен последний файл
     if not more_tasks:
+        # кто будет валидировать
+        validator = None
+        if validators:
+            if len(validators) == 2:
+                # если два валидатора, то проверка назначается одному из них в зависимости от последней цифры id юзера
+                index = int(user[-1])%2
+                validator = validators[index]
+            else:
+                validator = validators[0]
+
         # прочитать реферал из бд
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)
@@ -272,26 +288,24 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         await msg.reply(lex['all_sent'])
         log('logs.json', user, 'SENT_ALL_FILES')
         print(user, 'SENT_ALL_FILES')
-        for i in admins:
-            await bot.send_message(chat_id=i, text=f'Юзер отправил все файлы - id{user}'
-                                                   f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}')
-        # Отправить файлЫ админу на проверку
-        for task in tasks:
-            print('adm', task)
-            if tasks[task][0] == 'review':
-                # Отправить каждый файл, у которого статус == review
-                file_id = tasks[task][1]
-                text = lex['tasks'][task].split('\n')[0]
+        for i in admins + [validator]:
+            if i:
+                await bot.send_message(chat_id=i, text=f'Юзер отправил все файлы - id{user}'
+                                       f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}')
 
-                await bot.send_document(chat_id=admins[0], document=file_id, caption=text, parse_mode='HTML')  # Крис
-                await bot.send_document(chat_id=admins[1], document=file_id, caption=text, parse_mode='HTML')  # Илья
+        # Отправить файлЫ на проверку одному валидатору (если есть) и первому админу
+        output = await send_files(user, 'review')
+        # print(output)
+        for i in output:
+            file_id, task_message = i
+            await bot.send_document(chat_id=admins[0], document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
+            if validator:
+                await bot.send_document(chat_id=validator, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
+        log(logs, user, 'review files received')
 
-        with open(baza_info, 'r', encoding='utf-8') as f:
-            data_inf = json.load(f)
-
-        ref = data_inf[user]['referral']
-        # сообщение с кнопками (✅принять или нет❌)
-        await bot.send_message(chat_id=admins[0], text=f'{lex["adm_review"]} id{user}?'
+        # сообщение с кнопками (✅принять или нет❌) если нет валидатора, то кнопки получит админ
+        send_to = validator if validator else admins[0]
+        await bot.send_message(chat_id=send_to, text=f'{lex["adm_review"]} id{user}?'
                                                        f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}',
                                reply_markup=keyboard_admin)
 

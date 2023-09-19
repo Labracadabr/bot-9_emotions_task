@@ -7,15 +7,10 @@ import handler_user
 import handler_pd
 
 
-# Функция конфигурирования и запуска бота
 async def main():
-    # Загружаем конфиг в переменную config
+    # Инициализация
     config: Config = load_config()
-
-    # Инициализируем хранилище (создаем экземпляр класса MemoryStorage)
     storage: MemoryStorage = MemoryStorage()
-
-    # Инициализируем бот и диспетчер
     bot: Bot = Bot(token=config.tg_bot.token)
     dp: Dispatcher = Dispatcher(storage=storage)
 
@@ -27,7 +22,7 @@ async def main():
     # dp.include_router(test.router)
 
     # Пропускаем накопившиеся апдейты и запускаем polling
-    await bot.delete_webhook(drop_pending_updates=False)  # False > бот ответит на сообщения, присланные за время спячки
+    await bot.delete_webhook(drop_pending_updates=False)  # False > бот ответит на апдейты, присланные за время откл
     await dp.start_polling(bot)
 
 

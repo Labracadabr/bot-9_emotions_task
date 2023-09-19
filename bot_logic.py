@@ -2,7 +2,7 @@ import json
 from aiogram.filters import BaseFilter
 from aiogram.filters.state import State, StatesGroup
 import os
-from settings import baza_task, baza_info, tasks_tsv
+from settings import baza_task, baza_info, tasks_tsv, logs
 from lexic import lex
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, CallbackQuery, FSInputFile
@@ -100,7 +100,7 @@ async def get_tsv(TKN, bot, msg, worker):
     return path
 
 
-async def accept_user(TKN, bot, worker):
+async def accept_user(worker):
     # проставить accept во всех файлах
     with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
@@ -115,3 +115,47 @@ async def accept_user(TKN, bot, worker):
     data.setdefault(worker, tasks)
     with open(baza_task, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
+
+
+async def send_files(worker, status):
+    #  логи
+    log(logs, worker, f'{status} files requested')
+    #  правильность ввода
+    if status not in ('reject', 'accept', 'review'):
+        print('wrong adm request')
+        return
+
+    # чтение бд
+    with open(baza_task, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    tasks = data[worker]
+
+    # чтение инстр заданий для подписи к файлам
+    all_tasks_text = []
+    with open(tasks_tsv, 'r', encoding='utf-8') as f:
+        next_task = []
+        for line in f.readlines():
+            all_tasks_text.append(line.split('\t'))
+
+    # Отправить файлЫ на проверку
+    output = []
+    for task in tasks:
+        if tasks[task][0] == status:
+            # Отправить каждый файл, у которого статус == review
+            file_id = tasks[task][1]
+            for tasks_text in all_tasks_text:
+                if tasks_text[0] == task:
+                    next_task = tasks_text
+            # print(next_task)
+
+            name = next_task[1]+' '+ next_task[3]
+            link = next_task[2]
+            instruct = next_task[4]
+            task_message = f'<a href="{link}">{name}</a>\n{instruct}'
+            # print(task_message)
+
+            # text = lex['tasks'][task].split('\n')[0]
+            print('adm', task)
+            output.append((file_id, task_message,))
+
+    return output

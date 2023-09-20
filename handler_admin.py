@@ -1,6 +1,6 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
-from settings import admins, baza_task, baza_info, logs
+from settings import admins, baza_task, baza_info, logs, validators
 from bot_logic import Access, log, id_from_text, FSM, get_tsv, accept_user, send_files
 from lexic import lex
 import json
@@ -33,7 +33,7 @@ TKN: str = config.tg_bot.token
 
 
 # admin нажал ✅
-@router.callback_query(Access(admins), F.data == 'admin_ok')
+@router.callback_query(Access(admins+validators), F.data == 'admin_ok')
 async def admin_ok(callback: CallbackQuery, bot:Bot):
     msg = callback.message
 
@@ -67,7 +67,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
 
 
 # admin нажал ❌
-@router.callback_query(Access(admins), lambda x: x.data == 'admin_no')
+@router.callback_query(Access(admins+validators), lambda x: x.data == 'admin_no')
 async def admin_no(callback: CallbackQuery, bot: Bot):
     msg = callback.message
     log(logs, str(msg.from_user.id), 'admin_no')
@@ -83,7 +83,7 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
 
 
 # админ ответил на сообщение
-@router.message(Access(admins), F.reply_to_message)
+@router.message(Access(admins+validators), F.reply_to_message)
 async def reply_to_msg(msg: Message, bot: Bot):
     # ответ админа
     admin_response = str(msg.text)
@@ -239,7 +239,7 @@ async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
 
 
 # админ что-то пишет
-@router.message(Access(admins), F.content_type.in_({'text'}))
+@router.message(Access(admins+validators), F.content_type.in_({'text'}))
 async def adm_msg(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
     txt = msg.text

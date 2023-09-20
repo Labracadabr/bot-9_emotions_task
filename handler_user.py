@@ -384,7 +384,7 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
 
 
 # юзер что-то пишет
-@router.message(~Access(admins), F.content_type.in_({'text'}))
+@router.message(~Access(admins+validators), F.content_type.in_({'text'}))
 async def usr_txt2(msg: Message, bot: Bot):
     log('logs.json', msg.from_user.id, msg.text)
 

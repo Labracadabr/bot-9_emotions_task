@@ -20,10 +20,15 @@ storage: MemoryStorage = MemoryStorage()
 
 # команда /help
 @router.message(Command(commands=['help']))
-async def process_help_command(message: Message):
-    print(message.from_user.id, '/help')
-    log('logs.json', message.from_user.id, '/help')
-    await message.answer(lex['help'])
+async def process_help_command(msg: Message):
+    user = str(msg.from_user.id)
+    print(user, '/help')
+    log('logs.json', user, '/help')
+
+    if user in admins + validators:
+        await msg.answer(lex['adm_help'], parse_mode='HTML')
+    else:
+        await msg.answer(lex['help'])
 
 
 # # чекнуть не в бане ли юзер
@@ -122,7 +127,7 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
 
         # приветствие и выдача политики
         await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
-        await message.answer(text='С политикой ознакомлен и согласен', reply_markup=keyboard_ok)
+        await message.answer(text=lex['pol_agree'], reply_markup=keyboard_ok)
         # бот переходит в состояние ожидания согласия с политикой
         await state.set_state(FSM.policy)
         # сообщить админу, кто стартанул бота
@@ -270,7 +275,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         await state.set_state(FSM.done_a_task)
         await msg.reply(text=lex['receive'].format(sent_file[-2:]), reply_markup=keyboard_user)
 
-    # если был отправлен последний файл
+    # если был отправлен последний файл, то они идут на проверку
     else:
         # кто будет валидировать
         validator = None

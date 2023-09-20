@@ -99,7 +99,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
         await bot.send_message(orig.chat.id, 'На это сообщение не надо отвечать')
 
     # если админ написал причину отказа❌
-    elif lex["adm_review"] in orig.text:
+    elif lex["adm_review"] in orig.text or orig.text.startswith('reject id'):
         print('adm reject')
         # записать номера отклоненных файлов
         rejected_files = []
@@ -281,7 +281,7 @@ async def adm_msg(msg: Message, bot: Bot):
                 text=f'✅ Приняты файлы от id{worker}', chat_id=i, disable_notification=True)
 
     # отпр тсв со всем что юзер скинул на данный момент
-    elif txt.lower().startswith('send id'):
+    elif txt.lower().startswith('tsv id'):
         # worker = вытащить id из текста сообщения
         worker = id_from_text(txt)
 
@@ -302,13 +302,11 @@ async def adm_msg(msg: Message, bot: Bot):
             await bot.send_document(chat_id=admins[0], document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
         log(logs, worker, f'{status} files received')
 
-    # если это админ, то создать два задания для отладки
+    # создать два задания для отладки
     elif txt.lower() == 'adm start':
         # чтение БД
         with open(baza_task, 'r', encoding='utf-8') as f:
             data_tsk = json.load(f)
-        with open(baza_info, 'r', encoding='utf-8') as f:
-            data_inf = json.load(f)
 
         print('adm start')
         await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки /next', chat_id=user)
@@ -318,7 +316,7 @@ async def adm_msg(msg: Message, bot: Bot):
             json.dump(data_tsk, f, indent=2, ensure_ascii=False)
 
     elif id_from_text(txt):
-        if lex["adm_review"] in txt:
+        if lex["adm_review"] in txt or txt.lower().startswith('reject id'):
             await msg.answer('Можешь написать отказ ответом на свое сообщение')
         # else:
         #     await msg.answer(f'Ответь на свое сообщение, и я покажу его юзеру id{id_from_text(txt)}')

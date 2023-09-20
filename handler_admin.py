@@ -134,9 +134,9 @@ async def reply_to_msg(msg: Message, bot: Bot):
                 # data_inf.setdefault(worker, info)
 
             if worker in data_inf:
-                ref = data_inf[worker]['referral']
-                username = data_inf[worker]['tg_username']
-                fullname = data_inf[worker]['tg_fullname']
+                ref = data_inf[worker].get('referral', None)
+                username = data_inf[worker].get('tg_username', None)
+                fullname = data_inf[worker].get('tg_fullname', None)
             else:
                 ref = username = fullname = '?'
 
@@ -172,6 +172,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
             with open(baza_task, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
                 print(worker, 'status saved')
+            log(logs, worker, 'adm_rejected')
 
     # если админ отвечает на сообщение юзера
     elif worker:
@@ -301,7 +302,6 @@ async def adm_msg(msg: Message, bot: Bot):
             await bot.send_document(chat_id=admins[0], document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
         log(logs, worker, f'{status} files received')
 
-
     # если это админ, то создать два задания для отладки
     elif txt.lower() == 'adm start':
         # чтение БД
@@ -320,14 +320,8 @@ async def adm_msg(msg: Message, bot: Bot):
     elif id_from_text(txt):
         if lex["adm_review"] in txt:
             await msg.answer('Можешь написать отказ ответом на свое сообщение')
-        else:
-            await msg.answer(f'Ответь на свое сообщение, и я покажу его юзеру id{id_from_text(txt)}')
+        # else:
+        #     await msg.answer(f'Ответь на свое сообщение, и я покажу его юзеру id{id_from_text(txt)}')
     else:
         await msg.answer('Команда не распознана')
-
-
-# админ что-то пишет
-@router.message(Access(admins), F.content_type.in_({'text'}))
-async def adm_txt(msg: Message):
-    await msg.answer('Команда не распознана')
 

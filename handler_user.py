@@ -226,14 +226,17 @@ async def compressed_pic(msg: Message):
 # юзер отправил норм файл
 @router.message(F.content_type.in_({'document'}), StateFilter(FSM.ready_for_next))
 async def file_ok(msg: Message, bot: Bot, state: FSMContext):
-    # # отклонить если файл тяжелее 50 мб
-    # if msg.document.file_size > 50000000:
-    #     print('size', msg.document.file_size)
-    #     await msg.answer(text='Файлы тяжелее 50 Мегабайт не принимаются')
-    #     return
+    user = str(msg.from_user.id)
+
+    # отклонить если файл тяжелее 50 мб
+    size = msg.document.file_size
+    if size > 50000000:
+        log(logs, user, f'size {size}')
+        print('size', size)
+        await msg.answer(text=lex['big_file'])
+        return
 
     # чтение БД
-    user = str(msg.from_user.id)
     with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
 
@@ -248,7 +251,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
             break
     print(user, 'sent', sent_file)
 
-    # меняем статус задания и сохраняем file_id
+    # меняем статус задания на 'review' и сохраняем file_id
     data[user][sent_file] = ('review', msg.document.file_id)
     tasks = data[user]
     with open(baza_task, 'w', encoding='utf-8') as f:
@@ -268,13 +271,13 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         await msg.reply(text=lex['receive'].format(sent_file[-2:]), reply_markup=keyboard_user)
 
     # если был отправлен последний файл
-    if not more_tasks:
+    else:
         # кто будет валидировать
         validator = None
         if validators:
             if len(validators) == 2:
                 # если два валидатора, то проверка назначается одному из них в зависимости от последней цифры id юзера
-                index = int(user[-1])%2
+                index = int(user[-1]) % 2
                 validator = validators[index]
             else:
                 validator = validators[0]
@@ -282,7 +285,10 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         # прочитать реферал из бд
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)
-        ref = data_inf[user]['referral']
+        if data_inf.get(user, None):
+            ref = data_inf[user].get('referral', None)
+        else:
+            ref = None
 
         # уведомить юзера, админов, внести в логи и в консоль
         await msg.reply(lex['all_sent'])

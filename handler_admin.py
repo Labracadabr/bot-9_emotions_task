@@ -194,7 +194,7 @@ async def adm_del(msg: Message, state: FSMContext):
 async def adm_passw(msg: Message, state: FSMContext):
     if msg.text == TKN[:4]:
         await msg.delete()
-        await msg.answer(text='Введи id, который нужно стереть')
+        await msg.answer(text='Введи id, который нужно стереть, например id12345')
         await state.set_state(FSM.delete)
     else:
         await msg.answer(text='Неверный пароль')
@@ -205,6 +205,9 @@ async def adm_passw(msg: Message, state: FSMContext):
 async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
     # worker = вытащить id из текста сообщения
     worker = id_from_text(msg.text.lower())
+    if not worker:
+        await msg.answer(text='Введи например id12345')
+        return
 
     # чтение бд
     with open(baza_task, 'r', encoding='utf-8') as f1, open(baza_info, 'r', encoding='utf-8') as f2:
@@ -216,15 +219,15 @@ async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
     await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_info))
     try:
         del data_tsk[worker]
-    except KeyError:
-        pass
+    except KeyError as e:
+        print('error', e)
     else:
         log(logs, worker, 'tasks deleted')
         print(worker, 'tasks deleted')
     try:
         del data_inf[worker]
-    except KeyError:
-        pass
+    except KeyError as e:
+        print('error', e)
     else:
         log(logs, worker, 'info deleted')
         print(worker, 'info deleted')
@@ -246,6 +249,7 @@ async def adm_msg(msg: Message, bot: Bot):
 
     if txt.startswith(TKN[:4]):
         # рассылка всем юзерам
+        log(logs, user, 'rassylka')
         with open(baza_task, 'r', encoding='utf-8') as f1:
             data_tsk = json.load(f1)
         for i in data_tsk:
@@ -284,6 +288,7 @@ async def adm_msg(msg: Message, bot: Bot):
     elif txt.lower().startswith('tsv id'):
         # worker = вытащить id из текста сообщения
         worker = id_from_text(txt)
+        log(logs, worker, 'admin_tsv')
 
         # отправить tsv админу
         path = await get_tsv(TKN, bot, msg, worker)
@@ -299,8 +304,10 @@ async def adm_msg(msg: Message, bot: Bot):
         await msg.answer(text=f'Отправляю файлы юзера id{worker} в статаусе {status}')
         for i in output:
             file_id, task_message = i
-            await bot.send_document(chat_id=admins[0], document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
-        log(logs, worker, f'{status} files received')
+            await bot.send_document(chat_id=user, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
+        log(logs, worker, f'{status} files received by adm')
+        log(logs, user, f'{status} files received from {worker}')
+
 
     # создать два задания для отладки
     elif txt.lower() == 'adm start':
@@ -322,4 +329,6 @@ async def adm_msg(msg: Message, bot: Bot):
         #     await msg.answer(f'Ответь на свое сообщение, и я покажу его юзеру id{id_from_text(txt)}')
     else:
         await msg.answer('Команда не распознана')
+        log(logs, user, 'adm_tupit')
+
 

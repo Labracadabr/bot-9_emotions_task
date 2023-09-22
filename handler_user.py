@@ -31,6 +31,23 @@ async def process_help_command(msg: Message):
         await msg.answer(lex['help'])
 
 
+# команда /instruct
+@router.message(Command(commands=['instruct']))
+async def process_help_command(msg: Message):
+    user = str(msg.from_user.id)
+    print(user, '/instruct')
+    log('logs.json', user, '/instruct')
+
+    # текст
+    await msg.answer(lex['instruct1'], parse_mode='HTML')
+
+    # # пример
+    await msg.answer(text=lex['good_exmpl'], parse_mode='HTML',disable_web_page_preview=False)
+    #
+    # антипример
+    await msg.answer(text=lex['bad_exmpl'], parse_mode='HTML' ,disable_web_page_preview=False)
+
+
 # # чекнуть не в бане ли юзер
 # @router.message(Access(book['ban']))
 # async def no_access(message: Message):
@@ -107,23 +124,30 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         await bot.send_message(chat_id=user_id, text=lex['no_ref'])
 
     # создать учетную запись юзера, если её еще нет и реферал есть
-    elif user_id not in data_inf and referral in referrals:
-        print(user_id, 'new user from:', referral)
-        data_tsk.setdefault(user_id, lex['user_account'])
+    elif user_id not in data_tsk and referral in referrals:
+        if user_id not in data_inf:
+            print(user_id, 'new user from:', referral)
+            data_tsk.setdefault(user_id, lex['user_account'])
 
-        # создать запись ПД
-        print(user_id, 'pd created')
-        info = lex['user_pd']
-        info['referral'] = referral
-        info['first_start'] = msg_time
-        info['tg_username'] = message.from_user.username
-        info['tg_fullname'] = message.from_user.full_name
-        print(info)
+            # создать запись ПД
+            print(user_id, 'pd created')
+            info = lex['user_pd']
+            info['referral'] = referral
+            info['first_start'] = msg_time
+            info['tg_username'] = message.from_user.username
+            info['tg_fullname'] = message.from_user.full_name
+            print(info)
 
-        data_inf.setdefault(user_id, info)
-        with open(baza_info, 'w', encoding='utf-8') as f:
-            json.dump(data_inf, f, indent=2, ensure_ascii=False)
-        data_inf.setdefault(user_id, info)
+            # сохранить новые данные
+            data_inf.setdefault(user_id, info)
+            with open(baza_info, 'w', encoding='utf-8') as f:
+                json.dump(data_inf, f, indent=2, ensure_ascii=False)
+            data_inf.setdefault(user_id, info)
+        else:
+            referral = data_inf[user].get('referral', '?')
+
+        with open(baza_task, 'w', encoding='utf-8') as f:
+            json.dump(data_tsk, f, indent=2, ensure_ascii=False)
 
         # приветствие и выдача политики
         await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
@@ -135,11 +159,7 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             await bot.send_message(
                 text=f'Bot started by id{user.id} {user.full_name} @{user.username} from: {referral}',
                 chat_id=i, disable_notification=True)
-        # сохранить новые данные
-        with open(baza_task, 'w', encoding='utf-8') as f:
-            json.dump(data_tsk, f, indent=2, ensure_ascii=False)
-        with open(baza_info, 'w', encoding='utf-8') as f:
-            json.dump(data_inf, f, indent=2, ensure_ascii=False)
+
         # логи
         log('logs.json', 'logs',
             f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}, start={referral}')
@@ -203,6 +223,11 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     msg_to_pin = await bot.send_message(text=lex['instruct1'], chat_id=worker.id, parse_mode='HTML')
     await bot.send_message(text=f"{lex['instruct2']}\n\n{lex['full_hd']}", chat_id=worker.id, parse_mode='HTML',
                            disable_web_page_preview=True, reply_markup=keyboard_user)
+    # пример
+    await bot.send_message(chat_id=worker.id, text=lex['good_exmpl'], parse_mode='HTML',disable_web_page_preview=True)
+    # антипример
+    await bot.send_message(chat_id=worker.id, text=lex['bad_exmpl'], parse_mode='HTML' ,disable_web_page_preview=True)
+    # закреп
     await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker.id, disable_notification=True)
 
 #
@@ -282,7 +307,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         if validators:
             if len(validators) == 2:
                 # если два валидатора, то проверка назначается одному из них в зависимости от последней цифры id юзера
-                index = int(user[-1]) % 2
+                index = int(user[-1]) % 2  # проверка четности
                 validator = validators[index]
             else:
                 validator = validators[0]

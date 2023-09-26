@@ -187,6 +187,7 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     more_tasks = False
     for file in tasks:
         if tasks[file][0] in ('status', 'reject'):
+            # задание найдено, создание текста с заданием
             more_tasks = True
             with open(tasks_tsv, 'r', encoding='utf-8') as f:
                 next_task = []
@@ -196,16 +197,15 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
                         next_task = splited_line
                         break
             # print(next_task)
-
             name = next_task[1]+' '+next_task[3]
             link = next_task[2]
             instruct = next_task[4]
             task_message = f'<a href="{link}">{name}</a>\n{instruct}'
 
+            # отправка задания и ожидание след файла
             await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
-            # бот переходит в состояние ожидания след файла
             await state.set_state(FSM.ready_for_next)
-            break
+            break  # закончить поиск заданий
 
     # если задания кончились
     if not more_tasks:

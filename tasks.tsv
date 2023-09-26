@@ -33,7 +33,7 @@ file32	Задание 32	https://youtu.be/U9kn_0Ig8yI	Touch-glasses	Поправ
 file33	Задание 33	https://youtu.be/bjfQz42a8Fw	Touch-head	Потрогайте только волосы на голове ладонью руки, как показано в примере.
 file34	Задание 34	https://youtu.be/YDyArR8auGU	Touch-mouth	Потрогайте только рот пальцами и ладонью, как показано в примере. Не задевайте другие участки лица.
 file35	Задание 35	https://youtu.be/uGnzf3XEzwk	Touch-nose	Потрогайте только нос большим и указательным пальцами, как показано в примере. Не задевайте другие участки лица.
-file36	Задание 36	https://trainingdata-data-collection.s3.amazonaws.com/dima/sdv/Glasses-headset.jpg	Glasses-headset	Сфотографируйтесь в прозрачных очках и любых наушниках (большие наушники, как в примере, или маленькие (наушники-вкладыши, airpods и т.д.), но чтобы их было видно). На линзах очков не должно быть отражения/бликов. Оправа очков не должна закрывать глаза.
+file36	Задание 36	https://trainingdata-data-collection.s3.amazonaws.com/dima/sdv/Glasses-headset.jpg	Glasses-headset	Сфотографируйтесь в прозрачных очках и любых наушниках (любые наушники, главное чтобы их было видно). На линзах очков не должно быть отражения/бликов. Оправа очков не должна закрывать глаза.
 file37	Задание 37	https://trainingdata-data-collection.s3.amazonaws.com/dima/sdv/Mask.jpg	Mask	Фото в медицинской маске, маска не должна закрывать глаза;
 file38	Задание 38	https://trainingdata-data-collection.s3.amazonaws.com/dima/sdv/Normal.jpg	Normal	Фото без эмоций, обычное лицо
 file39	Задание 39	https://trainingdata-data-collection.s3.amazonaws.com/dima/sdv/Sunglasses.jpg	Sunglasses	Сделайте фотографию в солнцезащитных очках (темные очки). Очки должны полностью скрывать ваши глаза.

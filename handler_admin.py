@@ -150,8 +150,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
                 await bot.send_message(chat_id=i, text=f'❌ Отклонено.\nid{worker} {fullname} @{username} ref: {ref}'
                                                        f'\nПричина:\n{admin_response}')
             # сообщить юзеру об отказе
-            msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
-            await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+            # msg_to_pin = await bot.send_message(chat_id=worker, text=lex['reject']+f'<i>{txt_for_worker}</i>', parse_mode='HTML')
+            # await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
 
             # проставить reject в отклоненных файлах
             with open(baza_task, 'r', encoding='utf-8') as f:
@@ -252,12 +252,17 @@ async def adm_msg(msg: Message, bot: Bot):
         log(logs, user, 'rassylka')
         with open(baza_task, 'r', encoding='utf-8') as f1:
             data_tsk = json.load(f1)
+        await bot.send_message(chat_id=user, text='Запущена рассылка')
+        msg_sent = not_found = 0
         for i in data_tsk:
             try:
                 await bot.send_message(chat_id=i, text=txt[4:], parse_mode='HTML')
                 print('msg_sent', i)
+                msg_sent += 1
             except:
                 print('not_found', i)
+                not_found += 1
+        await bot.send_message(chat_id=user, text=f'Доставлено до {msg_sent} из {msg_sent + not_found} юзеров')
 
     # админ запрашивает файл
     elif txt.lower() == 'send bd':
@@ -307,7 +312,6 @@ async def adm_msg(msg: Message, bot: Bot):
             await bot.send_document(chat_id=user, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
         log(logs, worker, f'{status} files received by adm')
         log(logs, user, f'{status} files received from {worker}')
-
 
     # создать два задания для отладки
     elif txt.lower() == 'adm start':

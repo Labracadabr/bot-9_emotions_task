@@ -1,3 +1,4 @@
+import asyncio
 import json
 from aiogram import Router, Bot, F
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
@@ -8,7 +9,7 @@ from settings import admins, validators, baza_task, baza_info, referrals, tasks_
 from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import CallbackQuery, Message, URLInputFile
+from aiogram.types import CallbackQuery, Message, URLInputFile, Poll, PollAnswer
 
 
 # Инициализация всяких ботских штук
@@ -185,31 +186,101 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 
     # найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
     more_tasks = False
-    for file in tasks:
-        if tasks[file][0] in ('status', 'reject'):
+    for file_num in tasks:
+        if tasks[file_num][0] in ('status', 'reject'):
             # задание найдено, создание текста с заданием
             more_tasks = True
-            with open(tasks_tsv, 'r', encoding='utf-8') as f:
-                next_task = []
-                for line in f.readlines():
-                    splited_line = line.split('\t')
-                    if splited_line[0] == file:
-                        next_task = splited_line
-                        break
-            # print(next_task)
-            name = next_task[1]+' '+next_task[3]
-            link = next_task[2]
-            instruct = next_task[4]
-            task_message = f'<a href="{link}">{name}</a>\n{instruct}'
 
-            # отправка задания и ожидание след файла
-            await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
-            await state.set_state(FSM.ready_for_next)
-            break  # закончить поиск заданий
+            # если перед этим заданием требуется тестик
+            # if file_num in ('file01', 'file04', 'file31', 'file35', 'file59'):
+            if file_num in ('file01', 'file04', 'file35'):
+                await message.answer(text=lex['poll_msg'])
+
+                # отравка фото\видео примеров
+                if isinstance(lex[f'poll_pic_{file_num}'], list):
+                    for i, link in enumerate(lex[f'poll_pic_{file_num}'], start=1):
+                        await message.answer(text=f'<a href="{link}">{i}</a>', parse_mode='HTML',disable_web_page_preview=False)
+                else:
+                    await bot.send_media_group(chat_id=user, media=json.loads(lex[f'poll_pic_{file_num}']))
+
+
+                # await bot.send_photo(photo=lex[f'poll_pic_{file_num}'], chat_id=user)
+                await bot.send_poll(chat_id=user, question=lex[f'poll_text_{file_num}'], options=['1', '2', '3'],
+                                    allows_multiple_answers=True, is_anonymous=False)
+                log('logs.json', user, f'poll_{file_num}')
+                await state.set_state(FSM.polling)
+                return
+
+            else:
+                with open(tasks_tsv, 'r', encoding='utf-8') as f:
+                    next_task = []
+                    for line in f.readlines():
+                        splited_line = line.split('\t')
+                        if splited_line[0] == file_num:
+                            next_task = splited_line
+                            break
+                # print(next_task)
+                name = next_task[1]+' '+next_task[3]
+                link = next_task[2]
+                instruct = next_task[4]
+                task_message = f'<a href="{link}">{name}</a>\n{instruct}'
+
+                # отправка задания
+                await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
+                await state.set_state(FSM.ready_for_next)
+                break  # закончить поиск заданий
 
     # если задания кончились
     if not more_tasks:
         await bot.send_message(chat_id=user, text=lex['no_more'], parse_mode='HTML')
+
+
+# юзер отвечает на тестик
+@router.poll_answer()
+async def poll(poll_answer: PollAnswer, bot: Bot, state: FSMContext):
+    user = str(poll_answer.user.id)
+    print(poll_answer.model_dump_json(indent=4, exclude_none=True))
+
+    # чтение БД
+    with open(baza_task, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    file_num = ''
+    # вычисляем, по какому заданию был тест
+    tasks = data[user]
+    for i in tasks:
+        # print(tasks[i])
+        if tasks[i][0] in ('status', 'reject'):
+            file_num = i
+            log('logs.json', user, f'poll_done_{file_num}')
+            break
+    print(file_num)
+
+    # Отправить комментарий к тесту
+    if poll_answer.option_ids == [0, 1]:
+        text = 'Правильно!\n\n'+lex[f'poll_ans_{file_num}']
+    else:
+        text = 'Неверно, будьте внимательнее\n\n'+lex[f'poll_ans_{file_num}']
+
+    await bot.send_message(chat_id=user, text=text, parse_mode='HTML')
+
+    # создание текста с заданием
+    with open(tasks_tsv, 'r', encoding='utf-8') as f:
+        next_task = []
+        for line in f.readlines():
+            splited_line = line.split('\t')
+            if splited_line[0] == file_num:
+                next_task = splited_line
+                break
+    # print(next_task)
+    name = next_task[1] + ' ' + next_task[3]
+    link = next_task[2]
+    instruct = next_task[4]
+    task_message = f'<a href="{link}">{name}</a>\n{instruct}'
+
+    # отправка задания
+    await asyncio.sleep(2)
+    await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
+    await state.set_state(FSM.ready_for_next)
 
 
 # юзер согласен с политикой ✅
@@ -264,6 +335,15 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         log(logs, user, f'size {size}')
         print('size', size)
         await msg.answer(text=lex['big_file'])
+        return
+
+    # отклонить если вертикальная съемка
+    width = msg.document.thumbnail.width
+    height = msg.document.thumbnail.height
+    if width <= height:
+        log(logs, user, f'vertical_file')
+        print('vertical_file', f'{width} <= {height}')
+        await msg.answer(text='Нужно снимать горизонтально, а не вертикально. Пожалуйста, переделайте.')
         return
 
     # чтение БД
@@ -341,9 +421,8 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
         # сообщение с кнопками (✅принять или нет❌) если нет валидатора, то кнопки получит админ
         send_to = validator if validator else admins[0]
-        await bot.send_message(chat_id=send_to, text=f'{lex["adm_review"]} id{user}?'
-                                                       f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}',
-                               reply_markup=keyboard_admin)
+        await bot.send_message(chat_id=send_to, text=f'{lex["adm_review"]} id{user}?\n{msg.from_user.full_name}'
+                                                     f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboard_admin)
 
 
 # команда /cancel - отменить отправленный файл
@@ -379,7 +458,7 @@ async def cancel(msg: Message, bot: Bot, state: FSMContext):
             nums_to_cancel.append(num)
         else:
             await msg.reply(lex['cancel_wrong_form'])
-            break
+            return
 
     # если все номера указаны верно
     if len(msg.text.split()) == len(nums_to_cancel):

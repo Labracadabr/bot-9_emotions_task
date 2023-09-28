@@ -55,6 +55,7 @@ class FSM(StatesGroup):
     age = State()               # Заполнение перс данных
     gender = State()            # Заполнение перс данных
     fio = State()               # Заполнение перс данных
+    polling = State()               # тест для юзера
 
 
 async def get_tsv(TKN, bot, msg, worker):
@@ -62,36 +63,41 @@ async def get_tsv(TKN, bot, msg, worker):
     with open(baza_task, 'r') as f:
         data = json.load(f)
 
-    urls = []
+    urls = {}
     tasks = data[worker]
-    for file in tasks:
+    for file_num in tasks:
         # добыть ссылку по file_id
         try:
-            file_info = await bot.get_file(tasks[file][1])
+            file_info = await bot.get_file(tasks[file_num][1])
             file_url = file_info.file_path
             url = f'https://api.telegram.org/file/bot{TKN}/{file_url}'
+            print(file_num, url)
         except TelegramBadRequest:
             url = 'unavailable'
-            print(file, 'file unavailable')
+            print(file_num, 'file unavailable')
 
-        urls.append(url)
+        urls.setdefault(file_num, url)
 
     folder = 'sent_files'
     if not os.path.exists(folder):
         os.makedirs(folder)
     path = f'{folder}/sent_{worker}.tsv'
     with open(path, 'w', encoding='UTF-8') as file:
-        tasks_dict = lex['tasks']
+        # tasks_dict = lex['tasks']
+        #  создание слоавря {код задания: название}
+        with open(tasks_tsv, 'r', encoding='UTF-8') as f:
+            tasks_dict = {i.split('\t')[0]: i.split('\t')[3] for i in f.readlines()}
+        print(tasks_dict)
 
         # первая строка таблицы
         row = ['create_time:', f'{str(msg.date.date())}', f'{msg.date.time()}']
-        # print('\t'.join(row), file=file)
+        print('\t'.join(row), file=file)
 
         #  остальные строки
         for i, file_num in enumerate(tasks_dict):
             # print(tasks_dict[file_num])
             try:
-                row = (file_num, tasks_dict[file_num].split('> ')[1].split('\t')[0], urls[i])
+                row = (file_num, tasks_dict[file_num], urls[file_num])
             except IndexError:
                 break
             print('\t'.join(map(str, row)), file=file)

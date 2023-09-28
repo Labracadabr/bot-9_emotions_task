@@ -111,13 +111,23 @@ async def cancel(msg: Message, state: FSMContext):
         with open(baza_info, 'w', encoding='utf-8') as f:
             json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
-        # если асессор из TD, то спросить фио
         if data_inf[user]['referral']:
+            # если асессор из TD, то спросить фио
+
             if data_inf[user]['referral'].lower() == 'td':
                 await state.set_state(FSM.fio)
                 await msg.answer(text=lex['fio'])
                 log('logs.json', user, 'ask gender')
                 print(user, 'fio')
+
+            # если толокер, то дать id
+            elif data_inf[user]['referral'].lower() == 'toloka':
+                print(user, 'toloka')
+                await msg.answer(text=lex['tlk_ok'])
+                await msg.answer(text=f'<code>{user}</code>', parse_mode='HTML')
+                log('logs.json', user, 'tlk ok')
+                await state.clear()
+
             else:
                 await msg.answer(text=lex['pd_ok'])
                 log('logs.json', user, 'gender ok')

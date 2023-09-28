@@ -4,6 +4,7 @@ kris = "2137731767"
 liza = '677214436'
 
 # Список id админов. Файлы приходят только первому по списку
+# admins: list[str] = [dima]
 admins: list[str] = [ilya, dima]
 
 # Список id валидаторов. Можно вписать либо ноль, либо одного, либо двух - тогда одному будут идти четные, второму нечет
@@ -18,7 +19,7 @@ logs = 'logs.json'
 tasks_tsv = 'tasks.tsv'
 
 # каналы сбора
-referrals = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'schura', 'cat', 'airplane', 'one_more')
+referrals = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'schura', 'cat', 'toloka', 'airplane', 'one_more')
 # https://t.me/TdTasksBot?start=...
 
 # # игнорить ли сообщения, присланные во время отключения бота

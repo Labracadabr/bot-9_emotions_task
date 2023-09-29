@@ -203,7 +203,6 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
                 else:
                     await bot.send_media_group(chat_id=user, media=json.loads(lex[f'poll_pic_{file_num}']))
 
-
                 # await bot.send_photo(photo=lex[f'poll_pic_{file_num}'], chat_id=user)
                 await bot.send_poll(chat_id=user, question=lex[f'poll_text_{file_num}'], options=['1', '2', '3'],
                                     allows_multiple_answers=True, is_anonymous=False)
@@ -277,7 +276,7 @@ async def poll(poll_answer: PollAnswer, bot: Bot, state: FSMContext):
     instruct = next_task[4]
     task_message = f'<a href="{link}">{name}</a>\n{instruct}'
 
-    # отправка задания
+    # отправка задания юзеру
     await asyncio.sleep(2)
     await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
     await state.set_state(FSM.ready_for_next)
@@ -337,14 +336,15 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         await msg.answer(text=lex['big_file'])
         return
 
-    # отклонить если вертикальная съемка
-    width = msg.document.thumbnail.width
-    height = msg.document.thumbnail.height
-    if width <= height:
-        log(logs, user, f'vertical_file')
-        print('vertical_file', f'{width} <= {height}')
-        await msg.answer(text='Нужно снимать горизонтально, а не вертикально. Пожалуйста, переделайте.')
-        return
+    # отклонить если вертикальная съемка (если у файла есть thumbnail, то можно посчитать его размер)
+    if msg.document.thumbnail:
+        width = msg.document.thumbnail.width
+        height = msg.document.thumbnail.height
+        if width <= height:
+            log(logs, user, f'vertical_file')
+            print('vertical_file', f'{width} <= {height}')
+            await msg.answer(text='Нужно снимать горизонтально, а не вертикально. Пожалуйста, переделайте.')
+            return
 
     # чтение БД
     with open(baza_task, 'r', encoding='utf-8') as f:

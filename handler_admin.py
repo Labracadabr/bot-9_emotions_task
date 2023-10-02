@@ -32,6 +32,99 @@ TKN: str = config.tg_bot.token
 #     await msg.answer(text=f'id {ban_id} banned')
 
 
+# админ ответил на сообщение
+@router.message(Access(["992863889"]), lambda msg: msg.text.startswith('❌ Отклонено'))
+async def reject_fix(msg: Message, bot: Bot):
+    user = str(msg.from_user.id)
+    print('adm reject fix')
+
+    # worker = вытащить id из текста сообщения
+    worker = id_from_text(msg.text)
+    txt_for_worker = '\n\n'
+    # ответ админа
+    admin_response = msg.text.split('\n')[3:]
+    admin_response = '\n'.join(admin_response)
+
+    # записать номера отклоненных файлов
+    rejected_files = []
+    correct_format = True
+    for line in admin_response.split('\n'):
+        print(line)
+        file_num = line.split()[0]
+        # убедиться, что каждая строка начинается с номера задания
+        if not file_num.isnumeric():
+            correct_format = False
+            await bot.send_message(msg.chat.id, lex['wrong_rej_form'])
+            print(admin_response.split('\n'))
+            break
+        rejected_files.append(line.split()[0])
+        txt_for_worker += line+'\n'
+
+    if correct_format:
+        # прочитать данные юзера из пд
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+        # if worker not in data_inf:
+        #     print(worker, 'new user from:', None)
+            # data_tsk.setdefault(worker, lex['user_account'])
+            #
+            # # создать запись ПД
+            # print(user_id, 'pd created')
+            # info = lex['user_pd']
+            # info['referral'] = None
+            # info['first_start'] = None
+            # info['tg_username'] = message.from_user.username
+            # info['tg_fullname'] = message.from_user.full_name
+            # print(info)
+            # data_inf.setdefault(worker, info)
+
+        if worker in data_inf:
+            ref = data_inf[worker].get('referral', None)
+            username = data_inf[worker].get('tg_username', None)
+            fullname = data_inf[worker].get('tg_fullname', None)
+        else:
+            ref = username = fullname = '?'
+
+        rej_info_text=f'❌ Отклонено {len(rejected_files)} заданий.\nid{worker} {fullname} @{username} ref: {ref}\nПричина:\n{admin_response}'
+        if len(rej_info_text) > 4096:
+            dlina = len(rej_info_text)
+            await msg.answer(
+                text=f'Сообщение выйдет длиной в {dlina} символов. Максимальный лимит - 4096. Сократи на {dlina - 4096} и отправь заново')
+            print('reject_too_long')
+            log(logs, user, 'reject_too_long')
+            return
+
+        # продублировать всем админам
+        for i in admins:
+            await bot.send_message(chat_id=i, text=rej_info_text)
+
+        # сообщить юзеру об отказе
+        await bot.send_message(chat_id=worker, text=lex['reject'], parse_mode='HTML')
+        msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
+        await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+
+        # проставить reject в отклоненных файлах
+        with open(baza_task, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        tasks = data[worker]
+        for file in rejected_files:
+            print('file', file, 'rejected')
+            tasks[f'file{file}'][0] = 'reject'
+
+        # проставить accept в остальных файлах
+        for file in tasks:
+            if tasks[file][0] == 'review':
+                tasks[file][0] = 'accept'
+                print(file, 'accepted')
+
+        # сохранить статусы заданий
+        data.setdefault(worker, tasks)
+        with open(baza_task, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            print(worker, 'status saved')
+        log(logs, worker, 'adm_rejected')
+
+
 # admin нажал ✅
 @router.callback_query(Access(admins+validators), F.data == 'admin_ok')
 async def admin_ok(callback: CallbackQuery, bot:Bot):

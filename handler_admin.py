@@ -9,6 +9,7 @@ from config import Config, load_config
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 # import pygsheets
 # import googleapiclient.errors
@@ -32,7 +33,7 @@ TKN: str = config.tg_bot.token
 #     await msg.answer(text=f'id {ban_id} banned')
 
 
-# админ ответил на сообщение
+# reject fix
 @router.message(Access(["992863889"]), lambda msg: msg.text.startswith('❌ Отклонено'))
 async def reject_fix(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
@@ -79,6 +80,8 @@ async def reject_fix(msg: Message, bot: Bot):
             # data_inf.setdefault(worker, info)
 
         if worker in data_inf:
+            if isinstance(data_inf[worker], list):
+                data_inf[worker] = data_inf[worker][0]
             ref = data_inf[worker].get('referral', None)
             username = data_inf[worker].get('tg_username', None)
             fullname = data_inf[worker].get('tg_fullname', None)
@@ -99,9 +102,17 @@ async def reject_fix(msg: Message, bot: Bot):
             await bot.send_message(chat_id=i, text=rej_info_text)
 
         # сообщить юзеру об отказе
-        await bot.send_message(chat_id=worker, text=lex['reject'], parse_mode='HTML')
-        msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
-        await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+        try:
+            await bot.send_message(chat_id=worker, text=lex['reject'], parse_mode='HTML')
+            msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
+            await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+            log(logs, worker, 'rejected_delivered')
+        except TelegramForbiddenError:
+            await msg.answer(text=f'Юзер id{worker} заблокировал бота')
+        except TelegramBadRequest:
+            await msg.answer(text=f'Чат id{worker} не найден')
+        except Exception as e:
+            await msg.answer(text=f'Сообщение для id{worker} не доставлено\n{e}')
 
         # проставить reject в отклоненных файлах
         with open(baza_task, 'r', encoding='utf-8') as f:
@@ -228,6 +239,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
             # data_inf.setdefault(worker, info)
 
             if worker in data_inf:
+                if isinstance(data_inf[worker], list):
+                    data_inf[worker] = data_inf[worker][0]
                 ref = data_inf[worker].get('referral', None)
                 username = data_inf[worker].get('tg_username', None)
                 fullname = data_inf[worker].get('tg_fullname', None)
@@ -253,9 +266,17 @@ async def reply_to_msg(msg: Message, bot: Bot):
                 await bot.send_message(chat_id=i, text=rej_info_text)
 
             # сообщить юзеру об отказе
-            await bot.send_message(chat_id=worker, text=lex['reject'], parse_mode='HTML')
-            msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
-            await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+            try:
+                await bot.send_message(chat_id=worker, text=lex['reject'], parse_mode='HTML')
+                msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
+                await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
+                log(logs, worker, 'rejected_delivered')
+            except TelegramForbiddenError:
+                await msg.answer(text=f'Юзер id{worker} заблокировал бота')
+            except TelegramBadRequest:
+                await msg.answer(text=f'Чат id{worker} не найден')
+            except Exception as e:
+                await msg.answer(text=f'Сообщение для id{worker} не доставлено\n{e}')
 
             # проставить reject в отклоненных файлах
             with open(baza_task, 'r', encoding='utf-8') as f:

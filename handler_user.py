@@ -395,6 +395,8 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         # прочитать реферал из бд
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)
+        if isinstance(data_inf[user], list):
+            data_inf[user] = data_inf[user][0]
         if data_inf.get(user, None):
             ref = data_inf[user].get('referral', None)
         else:

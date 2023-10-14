@@ -2,7 +2,7 @@ import asyncio
 import json
 from aiogram import Router, Bot, F
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
-from bot_logic import log, Access, FSM, id_from_text, send_files # dwnld_photo_or_doc
+from bot_logic import *
 from config import Config, load_config
 from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
 from settings import admins, validators, baza_task, baza_info, referrals, tasks_tsv, logs
@@ -162,14 +162,14 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
                 chat_id=i, disable_notification=True)
 
         # логи
-        log('logs.json', 'logs',
+        log(logs, 'logs',
             f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}, start={referral}')
-        log('logs.json', user.id, f'/start={referral}')
+        log(logs, user.id, f'/start={referral}')
 
     # если юзер уже в БД и просто снова нажал старт
     else:
         await bot.send_message(text=lex['start_again'], chat_id=user_id, reply_markup=keyboard_user)
-        log('logs.json', user.id, f'start_again')
+        log(logs, user.id, f'start_again')
 
 
 # команда /next - дать юзеру след задание
@@ -177,64 +177,52 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
 async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     user = str(message.from_user.id)
     print(user, '/next')
-    log('logs.json', user, '/next')
-
-    # считать статусы заданий юзера
-    with open(baza_task, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-    tasks = data[user]
+    log(logs, user, '/next')
 
     # найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
-    more_tasks = False
-    for file_num in tasks:
-        if tasks[file_num][0] in ('status', 'reject'):
-            # задание найдено, создание текста с заданием
-            more_tasks = True
+    file_num = find_next_task(user)
 
-            # если перед этим заданием требуется тестик
-            # if file_num in ('file01', 'file04', 'file31', 'file35', 'file59'):
-            if file_num in ('file01', 'file04', 'file35'):
-                await message.answer(text=lex['poll_msg'])
+    # если перед этим заданием требуется тестик, то отправить соотв poll
+    # if file_num in ('file01', 'file04', 'file31', 'file35', 'file59'):
+    if file_num in ('file01', 'file04', 'file35'):
+        await message.answer(text=lex['poll_msg'])
 
-                # отравка фото\видео примеров
-                if isinstance(lex[f'poll_pic_{file_num}'], list):
-                    for i, link in enumerate(lex[f'poll_pic_{file_num}'], start=1):
-                        await message.answer(text=f'<a href="{link}">{i}</a>', parse_mode='HTML',disable_web_page_preview=False)
-                else:
-                    await bot.send_media_group(chat_id=user, media=json.loads(lex[f'poll_pic_{file_num}']))
+        # отравка фото\видео примеров
+        if isinstance(lex[f'poll_pic_{file_num}'], list):
+            for i, link in enumerate(lex[f'poll_pic_{file_num}'], start=1):
+                await message.answer(text=f'<a href="{link}">{i}</a>', parse_mode='HTML',disable_web_page_preview=False)
+        else:
+            await bot.send_media_group(chat_id=user, media=json.loads(lex[f'poll_pic_{file_num}']))
 
-                # await bot.send_photo(photo=lex[f'poll_pic_{file_num}'], chat_id=user)
-                await bot.send_poll(chat_id=user, question=lex[f'poll_text_{file_num}'], options=['1', '2', '3'],
-                                    allows_multiple_answers=True, is_anonymous=False)
-                log('logs.json', user, f'poll_{file_num}')
-                await state.set_state(FSM.polling)
-                return
+        # отправить опрос
+        await bot.send_poll(chat_id=user, question=lex[f'poll_text_{file_num}'], options=['1', '2', '3'],
+                            allows_multiple_answers=True, is_anonymous=False)
+        log('logs.json', user, f'poll_{file_num}')
+        await state.set_state(FSM.polling)
+        return
 
-            else:
-                with open(tasks_tsv, 'r', encoding='utf-8') as f:
-                    next_task = []
-                    for line in f.readlines():
-                        splited_line = line.split('\t')
-                        if splited_line[0] == file_num:
-                            next_task = splited_line
-                            break
-                # print(next_task)
-                name = next_task[1]+' '+next_task[3]
-                link = next_task[2]
-                instruct = next_task[4]
-                task_message = f'<a href="{link}">{name}</a>\n{instruct}'
+    else:
+        with open(tasks_tsv, 'r', encoding='utf-8') as f:
+            next_task = []
+            for line in f.readlines():
+                splited_line = line.split('\t')
+                if splited_line[0] == file_num:
+                    next_task = splited_line
+                    break
 
-                # отправка задания
-                await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
-                await state.set_state(FSM.ready_for_next)
-                break  # закончить поиск заданий
+        print(next_task)
+        # текст задания
+        task_message = get_task_message(next_task)
+        # отправка задания юзеру
+        await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
+        await state.set_state(FSM.ready_for_next)
 
     # если задания кончились
-    if not more_tasks:
+    if not file_num:
         await bot.send_message(chat_id=user, text=lex['no_more'], parse_mode='HTML')
 
 
-# юзер отвечает на тестик
+# юзер выполняет тестик
 @router.poll_answer()
 async def poll(poll_answer: PollAnswer, bot: Bot, state: FSMContext):
     user = str(poll_answer.user.id)
@@ -351,15 +339,16 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         data = json.load(f)
 
     # вычисляем, какое было прислано задание
-    sent_file = ''
-    tasks = data[user]
-    for i in tasks:
-        # print(tasks[i])
-        if tasks[i][0] in ('status', 'reject'):
-            sent_file = i
-            log('logs.json', user, f'SENT_{sent_file}')
-            break
+    sent_file = find_next_task(user)
+    # tasks = data[user]
+    # for i in tasks:
+    #     # print(tasks[i])
+    #     if tasks[i][0] in ('status', 'reject'):
+    #         sent_file = i
+    #         log('logs.json', user, f'SENT_{sent_file}')
+    #         break
     print(user, 'sent', sent_file)
+    log('logs.json', user, f'SENT_{sent_file}')
 
     # меняем статус задания на 'review' и сохраняем file_id
     data[user][sent_file] = ('review', msg.document.file_id)

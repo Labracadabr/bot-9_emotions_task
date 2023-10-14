@@ -31,6 +31,29 @@ def id_from_text(text):
     return user_id
 
 
+# найти первое доступное задание и выдать номер этого задания, напр file04
+def find_next_task(user: str):
+    # считать статусы заданий юзера
+    with open(baza_task, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+    tasks = data[user]
+    for file_num in tasks:
+        if tasks[file_num][0] in ('status', 'reject'):
+            # задание найдено
+            return file_num
+    # если доступных заданий нет:
+    return None
+
+
+# на входе строка из тсв с заданиями, на выходе task_message
+def get_task_message(next_task):
+    task_name = next_task[1] + ' ' + next_task[3]
+    link = next_task[2]
+    instruct = next_task[4]
+    task_message = f'<a href="{link}">{task_name}</a>\n{instruct}'
+    return task_message
+
+
 # Фильтр, проверяющий доступ юзера
 class Access(BaseFilter):
     def __init__(self, access: list[str]) -> None:
@@ -152,14 +175,8 @@ async def send_files(worker, status):
             for tasks_text in all_tasks_text:
                 if tasks_text[0] == task:
                     next_task = tasks_text
-            # print(next_task)
-
-            name = next_task[1]+' '+ next_task[3]
-            link = next_task[2]
-            instruct = next_task[4]
-            task_message = f'<a href="{link}">{name}</a>\n{instruct}'
+            task_message = get_task_message(next_task)
             # print(task_message)
-
             # text = lex['tasks'][task].split('\n')[0]
             print('adm', task)
             output.append((file_id, task_message,))

@@ -1,7 +1,7 @@
 from aiogram import Router, Bot, F
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from settings import admins, baza_task, baza_info, logs, validators
-from bot_logic import Access, log, id_from_text, FSM, get_tsv, accept_user, send_files
+from bot_logic import *
 from lexic import lex
 import json
 import os
@@ -446,7 +446,7 @@ async def adm_msg(msg: Message, bot: Bot):
 
         print('adm start')
         await bot.send_message(text=f'Ты админ. Доступно 2 задания для отладки /next', chat_id=user)
-        data_tsk[user] = {"file01": ['status', 'file'], "file02": ['status', 'file']}
+        data_tsk[user] = create_account(task_amount=2)
         # сохранить новые данные
         with open(baza_task, 'w', encoding='utf-8') as f:
             json.dump(data_tsk, f, indent=2, ensure_ascii=False)

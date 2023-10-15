@@ -5,12 +5,15 @@ liza = '677214436'
 
 # Список id админов. Файлы приходят только первому по списку
 # admins: list[str] = [dima]
+# admins: list[str] = [ilya]
 admins: list[str] = [ilya, dima]
 
 # Список id валидаторов. Можно вписать либо ноль, либо одного, либо двух - тогда одному будут идти четные, второму нечет
 # Им приходят файлы и кнопки, доступны команды валидации
 validators: list[str] = [liza]
 
+# сколько в боте заданий
+total_tasks: int = 65
 
 # где хранятся данные. тк я не умею в бд, то это просто json
 baza_task = 'user_status.json'
@@ -19,7 +22,7 @@ logs = 'logs.json'
 tasks_tsv = 'tasks.tsv'
 
 # каналы сбора
-referrals = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'schura', 'cat', 'toloka', 'airplane', 'one_more')
+referrals: tuple = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'schura', 'hanna', 'toloka', 'cat', 'airplane', 'one_more', 'good')
 # https://t.me/TdTasksBot?start=...
 
 # # игнорить ли сообщения, присланные во время отключения бота

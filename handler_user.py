@@ -5,7 +5,7 @@ from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
 from bot_logic import *
 from config import Config, load_config
 from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
-from settings import admins, validators, baza_task, baza_info, referrals, tasks_tsv, logs
+from settings import *
 from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
@@ -68,7 +68,6 @@ async def process_status_command(msg: Message, bot: Bot):
     # дать статус заданий по айди юзера
     async def get_status(user_id):
         non = rev = rej = acc = 0
-
         try:
             info = data[user_id]
             for task in info:
@@ -82,7 +81,7 @@ async def process_status_command(msg: Message, bot: Bot):
                 elif info[task][0] == 'accept':
                     acc += 1
         except KeyError:
-            non = '65'
+            non = total_tasks
         return f'✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n⏳ На проверке - <b>{rev}</b>\n💪 Осталось сделать - {non}'
 
     # # если это админ - показать статус всех юзеров
@@ -90,7 +89,7 @@ async def process_status_command(msg: Message, bot: Bot):
     #     answer_text = ''
     #     for usr in data:
     #         usr_stat = await get_status(usr)
-    #         if not usr_stat.endswith('65'):
+    #         if not usr_stat.endswith(total_tasks):
     #             answer_text += f'\nid{usr}\n{usr_stat}\n'
     #     if answer_text:
     #         await msg.answer('Статусы всех юзеров, кто отправил хотя бы один файл:\n'+answer_text, parse_mode='HTML')
@@ -128,7 +127,8 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
     elif user_id not in data_tsk and referral in referrals:
         if user_id not in data_inf:
             print(user_id, 'new user from:', referral)
-            data_tsk.setdefault(user_id, lex['user_account'])
+            data_tsk.setdefault(user_id, create_account(task_amount=total_tasks))
+            # data_tsk.setdefault(user_id, lex['user_account'])
 
             # создать запись ПД
             print(user_id, 'pd created')

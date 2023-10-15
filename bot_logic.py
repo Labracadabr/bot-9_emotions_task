@@ -2,7 +2,7 @@ import json
 from aiogram.filters import BaseFilter
 from aiogram.filters.state import State, StatesGroup
 import os
-from settings import baza_task, baza_info, tasks_tsv, logs
+from settings import baza_task, baza_info, tasks_tsv, logs, total_tasks
 from lexic import lex
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, CallbackQuery, FSInputFile
@@ -31,6 +31,13 @@ def id_from_text(text):
     return user_id
 
 
+# создать учет заданий
+def create_account(task_amount: int) -> dict:
+    # = {"file01": ['status', 'file'], }
+    account = {f'file{num:0>2}': ['status', 'file'] for num in range(1, task_amount+1)}
+    return account
+
+
 # найти первое доступное задание и выдать номер этого задания, напр file04
 def find_next_task(user: str):
     # считать статусы заданий юзера
@@ -46,7 +53,7 @@ def find_next_task(user: str):
 
 
 # на входе строка из тсв с заданиями, на выходе task_message
-def get_task_message(next_task):
+def get_task_message(next_task) -> str:
     task_name = next_task[1] + ' ' + next_task[3]
     link = next_task[2]
     instruct = next_task[4]
@@ -81,7 +88,8 @@ class FSM(StatesGroup):
     polling = State()               # тест для юзера
 
 
-async def get_tsv(TKN, bot, msg, worker):
+# создать tsv с названиями файлов и ссылками на их скачивания, return путь к файлу
+async def get_tsv(TKN, bot, msg, worker) -> str:
     #  чтение БД
     with open(baza_task, 'r') as f:
         data = json.load(f)
@@ -129,8 +137,8 @@ async def get_tsv(TKN, bot, msg, worker):
     return path
 
 
-async def accept_user(worker):
-    # проставить accept во всех файлах
+# проставить accept во всех файлах
+async def accept_user(worker) -> None:
     with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
     tasks = data[worker]
@@ -146,7 +154,8 @@ async def accept_user(worker):
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-async def send_files(worker, status):
+# отправить в чат файлы юзера в указанном статусе
+async def send_files(worker, status) -> list | None:
     #  логи
     log(logs, worker, f'{status} files requested')
     #  правильность ввода

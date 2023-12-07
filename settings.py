@@ -37,21 +37,26 @@ log_channel_id = '-1002105757977'
 # # игнорить ли сообщения, присланные во время отключения бота
 # ignor: bool = False
 
-# проверить все ли ок
-file_list = [baza_task, baza_info, logs, tasks_tsv]
-for file in file_list:
-    if not os.path.isfile(file):
-        if file.endswith('json'):
-            with open(file, 'w', encoding='utf-8') as f:
-                print('Отсутствующий файл создан:', file)
-                print('{}', file=f)
-        else:
-            print("Ошибка! Отсутствует файл с заданиями")
-            exit()
 
-with open(tasks_tsv, 'r', encoding='utf-8') as f:
-    task_list = f.readlines()
-    if not len(task_list) == total_tasks:
-        print('Ошибка! Не совпадает число заданий')
-        exit()
-print('OK')
+# проверить все ли на месте
+def check_files():
+    file_list = [baza_task, baza_info, logs, tasks_tsv]
+    for file in file_list:
+        if not os.path.isfile(file):
+            if file.endswith('json'):
+                with open(file, 'w', encoding='utf-8') as f:
+                    print('Отсутствующий файл создан:', file)
+                    print('{}', file=f)
+            else:
+                print("Ошибка! Отсутствует файл с заданиями")
+                exit()
+
+    with open(tasks_tsv, 'r', encoding='utf-8') as f:
+        task_list = f.readlines()
+        if not len(task_list) == total_tasks:
+            print('Ошибка! Не совпадает число заданий')
+            exit()
+    print('OK')
+
+
+check_files()

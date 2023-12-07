@@ -1,5 +1,5 @@
 from aiogram import Router, Bot, F
-from settings import admins, baza_task, baza_info, logs, validators
+from settings import admins, baza_task, baza_info, logs, validators, check_files
 from bot_logic import *
 from lexic import lex
 import json
@@ -205,7 +205,7 @@ async def adm_del(msg: Message, state: FSMContext):
 async def adm_passw(msg: Message, state: FSMContext):
     if msg.text == TKN[:4]:
         await msg.delete()
-        await msg.answer(text='Введи id, который нужно стереть, например id12345')
+        await msg.answer(text='Введи, что стереть, например id12345')
         await state.set_state(FSM.delete)
     else:
         await msg.answer(text='Неверный пароль')
@@ -214,8 +214,30 @@ async def adm_passw(msg: Message, state: FSMContext):
 # админ обнуляет юзера
 @router.message(Access(admins), StateFilter(FSM.delete))
 async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
+    txt = msg.text.lower()
+
+    # удаление всего (вообще все акки юзеров)
+    if txt == 'drop database':
+        with open(logs, 'r', encoding='utf-8') as f:
+            count = len(json.load(f))
+
+        await msg.answer(f'Удалены аккаунты {count} юзеров, вот бекап до удаления')
+        # прислать бекап
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_task))
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=baza_info))
+        await bot.send_document(chat_id=msg.from_user.id, document=FSInputFile(path=logs))
+        # удалить все
+        os.remove(logs)
+        os.remove(baza_task)
+        os.remove(baza_info)
+        # создать все
+        check_files()
+        await log(logs, str(msg.from_user.id), f'drop database {count} users')
+        await state.clear()
+        return
+
     # worker = вытащить id из текста сообщения
-    worker = id_from_text(msg.text.lower())
+    worker = id_from_text(txt)
     if not worker:
         await msg.answer(text='Введи например id12345')
         return

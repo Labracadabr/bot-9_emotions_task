@@ -34,7 +34,7 @@ TKN: str = config.tg_bot.token
 
 # admin нажал ✅
 @router.callback_query(Access(admins+validators), F.data == 'admin_ok')
-async def admin_ok(callback: CallbackQuery, bot:Bot):
+async def admin_ok(callback: CallbackQuery, bot: Bot):
     msg = callback.message
 
     # worker = вытащить id из текста сообщения
@@ -52,7 +52,7 @@ async def admin_ok(callback: CallbackQuery, bot:Bot):
     path = await get_tsv(TKN, bot, msg, worker)
     # отправить tsv админу
     for i in admins:
-        await bot.send_document(chat_id=i, document=FSInputFile(path=path))
+        await bot.send_document(chat_id=i, caption='Принято '+worker, document=FSInputFile(path=path))
     os.remove(path)
 
 
@@ -70,9 +70,10 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
                                 msg.chat.id, msg.message_id, parse_mode='HTML', reply_markup=None)
 
 
-# админ ответил на сообщение
+# админ ответил на сообщение или написал отказ
 @router.message(Access(admins+validators), F.reply_to_message)
 async def reply_to_msg(msg: Message, bot: Bot):
+    admin = str(msg.from_user.id)
     # ответ админа
     admin_response = str(msg.text)
     # сообщение, на которое отвечает админ
@@ -85,6 +86,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
     # если админ тупит
     if not worker:
         await bot.send_message(orig.chat.id, 'На это сообщение не надо отвечать')
+        await log(logs, admin, 'response_fail')
+        return
 
     # если админ написал причину отказа❌
     elif lex["adm_review"] in orig.text or orig.text.startswith('reject id'):
@@ -97,9 +100,11 @@ async def reply_to_msg(msg: Message, bot: Bot):
             # убедиться, что каждая строка начинается с номера задания
             if not file_num.isnumeric():
                 await bot.send_message(orig.chat.id, lex['wrong_rej_form'])
+                await log(logs, worker, 'reject_fail')
                 return
             if int(file_num) > total_tasks:
                 await bot.send_message(orig.chat.id, text=f'Нет задания под номером {file_num}\nНапиши причину отказа снова.')
+                await log(logs, worker, 'reject_fail')
                 return
 
             rejected_files.append(line.split()[0])
@@ -110,8 +115,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
             data_inf = json.load(f)
 
         if worker in data_inf:
-            if isinstance(data_inf[worker], list):
-                data_inf[worker] = data_inf[worker][0]
+            # if isinstance(data_inf[worker], list):  # из старой версии
+            #     data_inf[worker] = data_inf[worker][0]
             ref = data_inf[worker].get('referral', None)
             username = data_inf[worker].get('tg_username', None)
             fullname = data_inf[worker].get('tg_fullname', None)
@@ -119,6 +124,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
             ref = username = fullname = '?'
 
         rej_info_text = f'❌ Отклонено {len(rejected_files)} заданий.\nid{worker} {fullname} @{username} ref: {ref}\nПричина:\n{admin_response}'
+
+        # если слишком длинный текст
         if len(rej_info_text) > 4096:
             dlina = len(rej_info_text)
             await msg.answer(
@@ -149,26 +156,34 @@ async def reply_to_msg(msg: Message, bot: Bot):
         except Exception as e:
             await msg.answer(text=f'Сообщение для id{worker} не доставлено\n{e}')
 
-        # проставить reject в отклоненных файлах
+        # чтение бд
         with open(baza_task, 'r', encoding='utf-8') as f:
             data = json.load(f)
         tasks = data[worker]
+
+        # проставить reject в отклоненных файлах
+        count = 0
         for file in rejected_files:
             print('file', file, 'rejected')
             tasks[f'file{file}'][0] = 'reject'
+            count += 1
+        await log(logs, worker, f'{count} rejected')
 
-        # проставить accept в остальных файлах
+        # проставить accept в файлах, которые остались в статусе review
+        count = 0
         for file in tasks:
             if tasks[file][0] == 'review':
                 tasks[file][0] = 'accept'
                 print(file, 'accepted')
+                count += 1
+        await log(logs, worker, f'{count} accepted')
 
         # сохранить статусы заданий
         data.setdefault(worker, tasks)
         with open(baza_task, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
             print(worker, 'status saved')
-        await log(logs, worker, 'adm_rejected')
+        await log(logs, worker, 'status saved, admin '+admin)
 
     # если админ отвечает на сообщение юзера
     elif worker:
@@ -268,6 +283,18 @@ async def adm_msg(msg: Message, bot: Bot):
         else:
             await msg.answer('Команда не распознана')
             await log(logs, admin, f'wrong_command: \n{txt}')
+
+    # показать существующие реф ссылки
+    elif txt.lower().startswith('ref'):
+        send_msg = 'Сохраненные реферальные ссылки:\n'
+        # url бота
+        bot_info = await bot.get_me()
+        bot_link = f"https://t.me/{bot_info.username}?start="
+        # слепить ссылки
+        for ref in referrals:
+            send_msg += bot_link+ref+'\n'
+        # отправить
+        await bot.send_message(chat_id=admin, text=send_msg)
 
     # принять все файлы по айди юзера
     elif txt.lower().startswith('accept id'):

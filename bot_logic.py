@@ -46,12 +46,14 @@ class FSM(StatesGroup):
 
 # Запись данных item в указанный json file по ключу key
 async def log(file, key, item):
+    # сохранить в жсон
     with open(file, encoding='utf-8') as f:
         data = json.load(f)
     data.setdefault(str(key), []).append(item)
     with open(file, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
+    # дублировать логи в консоль
     log_text = str(key)+' '+str(item)
     print(log_text)
     # дублировать логи в тг-канал
@@ -121,10 +123,13 @@ def find_next_task(user: str):
 
 # на входе строка из тсв с заданиями, на выходе task_message
 def get_task_message(next_task) -> str:
-    task_name = next_task[1] + ' ' + next_task[3]
+    task_name = next_task[1] + '\n' + next_task[3]
     link = next_task[2]
-    instruct = next_task[4]
-    task_message = f'<a href="{link}">{task_name}</a>\n{instruct}'
+    instruct = next_task[4].replace('*', ' \n')
+    if link:
+        task_message = f'<a href="{link}">{task_name}</a>\n{instruct}'
+    else:
+        task_message = f'{task_name}\n{instruct}'
     return task_message
 
 

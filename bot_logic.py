@@ -47,11 +47,14 @@ class FSM(StatesGroup):
 # Запись данных item в указанный json file по ключу key
 async def log(file, key, item):
     # сохранить в жсон
-    with open(file, encoding='utf-8') as f:
-        data = json.load(f)
-    data.setdefault(str(key), []).append(item)
-    with open(file, 'w', encoding='utf-8') as f:
-        json.dump(data, f, indent=2, ensure_ascii=False)
+    try:
+        with open(file, encoding='utf-8') as f:
+            data = json.load(f)
+        data.setdefault(str(key), []).append(item)
+        with open(file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+    except Exception as e:
+        item += f'\nОшибка БД\n{e}'
 
     # дублировать логи в консоль
     log_text = str(key)+' '+str(item)

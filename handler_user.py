@@ -63,8 +63,8 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
     referral = command.args
     user = message.from_user
     msg_time = message.date.strftime("%d/%m/%Y %H:%M")
-    user_id = str(message.from_user.id)
-    print(f'Bot start id{user.id} {user.full_name} @{user.username} from:{referral}')
+    user_id = str(user.id)
+    print(f'Bot start id{user_id} {user.full_name} @{user.username} from:{referral}')
 
     # чтение БД
     with open(baza_task, 'r', encoding='utf-8') as f:
@@ -74,8 +74,10 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
 
     # если юзер без реферала и его раньше не было в БД: не проходит
     if user_id not in data_inf and referral not in referrals:
-        print(user_id, 'new user wrong ref:', referral)
+        # print(user_id, 'new user wrong ref:', referral)
         await bot.send_message(chat_id=user_id, text=lex['no_ref'])
+        await log(logs, user_id, f'wrong link @{user.username}')
+        return
 
     # создать учетную запись юзера, если её еще нет и реферал есть
     elif user_id not in data_tsk and referral in referrals:
@@ -119,6 +121,12 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         await log(logs, 'logs',
             f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}, start={referral}')
         await log(logs, user.id, f'/start={referral}')
+
+    # если это работник
+    elif user_id in admins+validators:
+        await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
+        await message.answer(text=lex['pol_agree'], reply_markup=keyboard_ok)
+        await state.set_state(FSM.policy)
 
     # если юзер уже в БД и просто снова нажал старт
     else:
@@ -168,6 +176,8 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     msg_to_pin = await bot.send_message(text=lex['instruct1'], chat_id=worker.id, parse_mode='HTML')
     await bot.send_message(text=f"{lex['instruct2']}\n\n{lex['full_hd']}", chat_id=worker.id, parse_mode='HTML',
                            disable_web_page_preview=True, reply_markup=keyboard_user)
+    url_exmpl = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
+    await bot.send_photo(chat_id=worker.id, photo=URLInputFile(url_exmpl), caption='Пример всех 15 фото')
     # закреп
     await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker.id, disable_notification=True)
     await state.clear()
@@ -207,25 +217,22 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         await msg.answer(text=lex['big_file'])
         return
 
-    # отклонить если вертикальная съемка (если у файла есть thumbnail, то можно посчитать его размер)
+    # отклонить если файл тяжелее 2 мб
+    if size < 2_000_000:
+        megabyte = round(size/1_000_000, 2)
+        await log(logs, user, f'size {size}')
+        await msg.answer(text=lex['small_file'].format(megabyte))
+        return
+
+    # отклонить если горизонтальная съемка (если у файла есть thumbnail, то можно посчитать его размеры)
     if msg.document.thumbnail:
         width = msg.document.thumbnail.width
         height = msg.document.thumbnail.height
-        if width <= height:
-            log(logs, user, f'vertical_file')
-            print('vertical_file', f'{width} <= {height}')
-            await msg.answer(text='Нужно снимать горизонтально, а не вертикально. Пожалуйста, переделайте.')
+        if width >= height:
+            await log(logs, user, f'wrong orient')
+            print('wrong orient', f'width: {width}, height: {height}')
+            await msg.answer(text=lex['vert'])
             return
-
-    # # отклонить если вертикальная съемка (если у файла есть thumbnail, то можно посчитать его размер)
-    # if msg.document.thumbnail:
-    #     width = msg.document.thumbnail.width
-    #     height = msg.document.thumbnail.height
-    #     if width <= height:
-    #         await log(logs, user, f'vertical_file')
-    #         print('vertical_file', f'{width} <= {height}')
-    #         await msg.answer(text='Нужно снимать горизонтально, а не вертикально. Пожалуйста, переделайте.')
-    #         return
 
     # чтение БД
     with open(baza_task, 'r', encoding='utf-8') as f:

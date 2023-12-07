@@ -7,6 +7,7 @@ kris = "2137731767"
 liza = '677214436'
 anya = '639770334'
 kate = '1110667509'
+sasha = '5488256829'
 
 # Список id админов. Файлы приходят автоматически только первому по списку
 # admins: list[str] = [anya]
@@ -17,7 +18,7 @@ admins: list[str] = [dima]
 validators: list[str] = []
 
 # сколько в боте заданий
-total_tasks: int = 2
+total_tasks: int = 15
 
 # где хранятся данные. тк я не умею в sql, то это просто json
 baza_task = 'user_status.json'
@@ -30,8 +31,8 @@ referrals = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'sch
 # https://t.me/PhotoTasksBot?start={}...
 
 # tg канал для логов
-log_channel_id = ''
-# log_channel_id = '-1002105757977'
+# log_channel_id = ''
+log_channel_id = '-1002105757977'
 
 # # игнорить ли сообщения, присланные во время отключения бота
 # ignor: bool = False

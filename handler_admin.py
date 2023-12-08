@@ -312,6 +312,23 @@ async def adm_msg(msg: Message, bot: Bot):
             await msg.answer('Команда не распознана')
             await log(logs, admin, f'wrong_command: \n{txt}')
 
+    # админ запрашивает перс данные
+    elif txt.lower().startswith('pd'):
+        worker = id_from_text(txt)
+        # чтение бд
+        with open(baza_info, 'r', encoding='utf-8') as f:
+            data_inf = json.load(f)
+        user_data = data_inf[worker]
+        # создать json
+        path = f'pd_{worker}.json'
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(user_data, f, indent=2, ensure_ascii=False)
+        # отправить и удалить
+        await bot.send_document(chat_id=admin, document=FSInputFile(path))
+        os.remove(path)
+        await msg.answer(user_data)
+        await log(logs, admin, 'admin_request_pd_'+worker)
+
     # показать существующие реф ссылки
     elif txt.lower().startswith('ref'):
         send_msg = 'Сохраненные реферальные ссылки:\n'

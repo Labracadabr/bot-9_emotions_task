@@ -8,6 +8,7 @@ from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram import Bot
 from config import Config, load_config
+from datetime import datetime
 
 
 # Инициализация
@@ -43,18 +44,20 @@ class FSM(StatesGroup):
     country = State()           # Заполнение перс данных
     polling = State()           # тест для юзера
 
-
-# Запись данных item в указанный json file по ключу key
+# Запись данных item в указанный csv file по ключу key
 async def log(file, key, item):
-    # сохранить в жсон
+    t = str(datetime.now()).split('.')[0]
+    # сохранить в csv
     try:
-        with open(file, encoding='utf-8') as f:
-            data = json.load(f)
-        data.setdefault(str(key), []).append(item)
-        with open(file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
+        with open(file, 'a', encoding='utf-8') as f:
+            print('\t'.join((t, str(key), repr(item))), file=f)
+        # with open(file, encoding='utf-8') as f:  # старая версия с json
+        #     data = json.load(f)
+        # data.setdefault(str(key), []).append(item)
+        # with open(file, 'w', encoding='utf-8') as f:
+        #     json.dump(data, f, indent=2, ensure_ascii=False)
     except Exception as e:
-        item += f'\nОшибка БД\n{e}'
+        item += f'\n🔴Ошибка записи:\n{e}'
 
     # дублировать логи в консоль
     log_text = str(key)+' '+str(item)

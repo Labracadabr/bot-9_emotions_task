@@ -23,7 +23,7 @@ total_tasks: int = 15
 # где хранятся данные. тк я не умею в sql, то это просто json
 baza_task = 'user_status.json'
 baza_info = 'user_info.json'
-logs = 'logs.json'
+logs = 'logs.tsv'
 tasks_tsv = 'tasks.tsv'
 
 # каналы сбора
@@ -47,7 +47,12 @@ def check_files():
                 with open(file, 'w', encoding='utf-8') as f:
                     print('Отсутствующий файл создан:', file)
                     print('{}', file=f)
-            else:
+            elif file.endswith('sv'):
+                with open(file, 'w', encoding='utf-8') as f:
+                    print('Отсутствующий файл создан:', file)
+                    print('\t'.join(('Time', 'User', 'Action')), file=f)
+
+            elif file == tasks_tsv:
                 print("Ошибка! Отсутствует файл с заданиями")
                 exit()
 

@@ -237,6 +237,14 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     # чтение БД
     with open(baza_task, 'r', encoding='utf-8') as f:
         data = json.load(f)
+    with open(baza_info, 'r', encoding='utf-8') as f:
+        data_inf = json.load(f)
+
+    # плюсануть кол-во отправленных
+    try:
+        data_inf[user].setdefault('total_sent', data_inf[user].get('total_sent')+1)
+    except Exception as e:
+        await log(logs, user, f'small_error: {e}')
 
     # вычисляем, какое было прислано задание
     sent_file = find_next_task(user)
@@ -273,11 +281,11 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
             else:
                 validator = validators[0]
 
-        # прочитать реферал из бд
+        # прочитать перс данные из бд
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)
-        if isinstance(data_inf[user], list):
-            data_inf[user] = data_inf[user][0]
+        # if isinstance(data_inf[user], list):  # из старой версии
+        #     data_inf[user] = data_inf[user][0]
         if data_inf.get(user, None):
             ref = data_inf[user].get('referral', None)
         else:

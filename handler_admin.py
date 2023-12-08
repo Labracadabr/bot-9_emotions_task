@@ -185,6 +185,12 @@ async def reply_to_msg(msg: Message, bot: Bot):
             print(worker, 'status saved')
         await log(logs, worker, 'status saved, admin '+admin)
 
+        # плюсануть кол-во отказов
+        try:
+            data_inf[worker].setdefault('reject', data_inf[worker].get('reject') + 1)
+        except Exception as e:
+            await log(logs, worker, f'small_error: {e}')
+
     # если админ отвечает на сообщение юзера
     elif worker:
         await log(logs, worker, f'adm_reply: {admin_response}')

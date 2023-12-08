@@ -42,6 +42,7 @@ class FSM(StatesGroup):
     gender = State()            # Заполнение перс данных
     fio = State()               # Заполнение перс данных
     country = State()           # Заполнение перс данных
+    race = State()              # Заполнение перс данных
     polling = State()           # тест для юзера
 
 # Запись данных item в указанный csv file по ключу key
@@ -177,7 +178,7 @@ async def get_tsv(TKN, bot, msg, worker) -> str:
     path = f'sent_{worker}.tsv'
     with open(path, 'w', encoding='UTF-8') as file:
         # tasks_dict = lex['tasks']
-        #  создание слоавря {код задания: название}
+        #  создание словаря {код задания: название}
         with open(tasks_tsv, 'r', encoding='UTF-8') as f:
             tasks_dict = {i.split('\t')[0]: i.split('\t')[3] for i in f.readlines()}
         print(tasks_dict)

@@ -1,13 +1,14 @@
 import json
 from aiogram import Router, Bot, F
-from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
+from aiogram.filters import Command, StateFilter
 from bot_logic import log, FSM
 from config import Config, load_config
 from settings import baza_info, logs
 from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import Message
+from aiogram.types import Message, CallbackQuery
+from keyboards import keyboard_race
 
 
 # Инициализация
@@ -43,10 +44,10 @@ async def personal_command(msg: Message, state: FSMContext):
 
     # проверить заполнены ли уже перс данные
     try:
-        data_inf[user]['gender']
+        data_inf[user]['race']
     except KeyError:
-        data_inf[user].setdefault('gender', None)
-    if not data_inf[user]['gender']:
+        data_inf[user].setdefault('race', None)
+    if not data_inf[user]['race']:
         # спросить возраст
         await state.set_state(FSM.age)
         await msg.answer(lex['age'])
@@ -57,7 +58,7 @@ async def personal_command(msg: Message, state: FSMContext):
         await log(logs, user, 'pd already ok')
 
 
-# юзер отправляет возраст
+# юзер отправляет возраст > спросить пол
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.age))
 async def personal_age(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
@@ -84,7 +85,7 @@ async def personal_age(msg: Message, state: FSMContext):
         await msg.reply(text=lex['age_bad'])
 
 
-# юзер отправляет пол
+# юзер отправляет пол > спросить расу
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.gender))
 async def personal_sex(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
@@ -102,15 +103,35 @@ async def personal_sex(msg: Message, state: FSMContext):
         with open(baza_info, 'w', encoding='utf-8') as f:
             json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
-        # спросить страну
-        await msg.answer(text=lex['country'])
-        await log(logs, user, 'gender ok')
-        await state.set_state(FSM.country)
+        # спросить race
+        await msg.answer(text=lex['race'], reply_markup=keyboard_race)
+        await state.set_state(FSM.race)
     else:
         await msg.reply(text=lex['gender_bad'])
 
 
-# юзер отправляет страну
+# юзер отправляет расу > спросить страну
+@router.callback_query(StateFilter(FSM.race))
+async def personal_sex(msg: CallbackQuery, state: FSMContext, bot: Bot):
+    user = str(msg.from_user.id)
+    race = msg.data
+    await log(logs, user, f'race: {race}')
+
+    # чтение БД
+    with open(baza_info, 'r', encoding='utf-8') as f:
+        data_inf = json.load(f)
+
+    # сохранить race в БД
+    data_inf[user]['race'] = race
+    with open(baza_info, 'w', encoding='utf-8') as f:
+        json.dump(data_inf, f, indent=2, ensure_ascii=False)
+
+    # спросить страну
+    await bot.send_message(chat_id=user, text=lex['country'])
+    await state.set_state(FSM.country)
+
+
+# юзер отправляет страну > спросить фио если ТД, выдать код если толокер
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.country))
 async def personal_country(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
@@ -122,7 +143,7 @@ async def personal_country(msg: Message, state: FSMContext):
         data_inf = json.load(f)
 
     # сохранить страну в БД
-    data_inf[user]['fio'] = country
+    data_inf[user]['country'] = country
     with open(baza_info, 'w', encoding='utf-8') as f:
         json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
@@ -151,7 +172,7 @@ async def personal_country(msg: Message, state: FSMContext):
         await state.clear()
 
 
-# юзер отправляет фио
+# юзер отправляет фио > конец
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.fio))
 async def personal_fio(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
@@ -161,7 +182,7 @@ async def personal_fio(msg: Message, state: FSMContext):
     slov = len(fio.split())
 
     # проверка правильности ввода
-    if slov == 3 or slov == 2 and all(isinstance(item, str) for item in fio):
+    if slov == 3 or slov == 2 and all(item.isalpha() for item in fio):
         # чтение БД
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)

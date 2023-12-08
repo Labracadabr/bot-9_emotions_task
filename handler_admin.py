@@ -218,7 +218,7 @@ async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
 
     # удаление всего (вообще все акки юзеров)
     if txt == 'drop database':
-        with open(logs, 'r', encoding='utf-8') as f:
+        with open(baza_task, 'r', encoding='utf-8') as f:
             count = len(json.load(f))
 
         await msg.answer(f'Удалены аккаунты {count} юзеров, вот бекап до удаления')

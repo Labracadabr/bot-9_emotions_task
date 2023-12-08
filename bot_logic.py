@@ -64,10 +64,11 @@ async def log(file, key, item):
     log_text = str(key)+' '+str(item)
     print(log_text)
     # дублировать логи в тг-канал
-    try:
-        await bot_func.send_message(chat_id=log_channel_id, text=log_text) if log_channel_id else None
-    except Exception as e:
-        print('channel error', e)
+    if item != '/next':
+        try:
+            await bot_func.send_message(chat_id=log_channel_id, text=log_text) if log_channel_id else None
+        except Exception as e:
+            print('channel error', e)
 
 
 # дать статус заданий по айди юзера

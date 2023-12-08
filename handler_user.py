@@ -93,6 +93,7 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             info['first_start'] = msg_time
             info['tg_username'] = message.from_user.username
             info['tg_fullname'] = message.from_user.full_name
+            info['lang_tg'] = message.from_user.language_code
             print(info)
 
             # сохранить новые данные

@@ -133,10 +133,14 @@ lex: dict[str:str] = {
                   "tg_username": None,
                   "tg_fullname": None,
                   "tasks": None,
+                  "reject": 0,
+                  "total_sent": 0,
                   "last_sent": None,
                   "fio": None,
                   "status": None,
-                  "country": None
+                  "country": None,
+                  "race": None,
+                  "lang": None
                 },
 
         'log': 'inn',

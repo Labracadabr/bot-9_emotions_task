@@ -34,7 +34,7 @@ async def process_help_command(msg: Message):
 async def process_help_command(msg: Message):
     user = str(msg.from_user.id)
     print(user, '/instruct')
-    await log('logs.json', user, '/instruct')
+    await log(logs, user, '/instruct')
 
     # текст
     await msg.answer(lex['instruct1'], parse_mode='HTML')
@@ -43,7 +43,7 @@ async def process_help_command(msg: Message):
 # # чекнуть не в бане ли юзер
 # @router.message(Access(book['ban']))
 # async def no_access(message: Message):
-#     await log('logs.json', message.from_user.id, 'ban')
+#     await log(logs, message.from_user.id, 'ban')
 #     await message.answer(lex['ban'])
 
 
@@ -51,7 +51,7 @@ async def process_help_command(msg: Message):
 @router.message(Command(commands=['status']))
 async def process_status_command(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
-    await log('logs.json', user, '/status')
+    await log(logs, user, '/status')
 
     stat = await get_status(user)
     await msg.answer(f'Ваши задания:\n\n{stat}', parse_mode='HTML')
@@ -170,7 +170,7 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     worker = callback.from_user
     print(worker.id, 'privacy_ok')
-    await log('logs.json', worker.id, 'privacy_ok')
+    await log(logs, worker.id, 'privacy_ok')
 
     # выдать инструкцию и примеры
     msg_to_pin = await bot.send_message(text=lex['instruct1'], chat_id=worker.id, parse_mode='HTML')
@@ -186,7 +186,7 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
 # если юзер пишет что-то не нажав ✅
 @router.message(StateFilter(FSM.policy))
 async def privacy_missing(msg: Message):
-    await log('logs.json', msg.from_user.id, 'privacy_missing')
+    await log(logs, msg.from_user.id, 'privacy_missing')
     await msg.answer(text=lex['privacy_missing'])
 
 
@@ -313,7 +313,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 @router.message(Command(commands=['cancel']))
 async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
     user = str(msg.from_user.id)
-    await log('logs.json', user, '/cancel')
+    await log(logs, user, '/cancel')
     with open(baza_task, 'r') as f:
         data = json.load(f)
     if user in data:

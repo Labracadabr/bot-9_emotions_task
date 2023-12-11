@@ -2,12 +2,12 @@ from aiogram import Router, Bot, F
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
 from bot_logic import *
 from config import Config, load_config
-from keyboards import keyboard_admin, keyboard_user, keyboard_ok, keyboard_privacy
+import keyboards
 from settings import *
 from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
-from aiogram.types import CallbackQuery, Message, URLInputFile, Poll, PollAnswer
+from aiogram.types import CallbackQuery, Message, URLInputFile
 
 
 # Инициализация всяких ботских штук
@@ -19,9 +19,9 @@ storage: MemoryStorage = MemoryStorage()
 
 # команда /help
 @router.message(Command(commands=['help']))
-async def process_help_command(msg: Message):
+async def comm(msg: Message):
     user = str(msg.from_user.id)
-    await log(logs, user, '/help')
+    await log(logs, user, msg.text)
 
     if user in admins + validators:
         await msg.answer(lex['adm_help'].format(len(admins), len(validators)), parse_mode='HTML')
@@ -29,12 +29,20 @@ async def process_help_command(msg: Message):
         await msg.answer(lex['help'])
 
 
+# команда /language
+@router.message(Command(commands=['language']))
+async def comm(msg: Message):
+    user = str(msg.from_user.id)
+    await msg.answer('Выберите язык / Choose language', reply_markup=keyboards.keyboard_lang)
+    await log(logs, user, msg.text)
+
+
+
 # команда /instruct
 @router.message(Command(commands=['instruct']))
-async def process_help_command(msg: Message):
+async def comm(msg: Message):
     user = str(msg.from_user.id)
-    print(user, '/instruct')
-    await log(logs, user, '/instruct')
+    await log(logs, user, msg.text)
 
     # текст
     await msg.answer(lex['instruct1'], parse_mode='HTML')
@@ -108,8 +116,8 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             json.dump(data_tsk, f, indent=2, ensure_ascii=False)
 
         # приветствие и выдача политики
-        await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
-        await message.answer(text=lex['pol_agree'], reply_markup=keyboard_ok)
+        await message.answer(text=lex['start'], reply_markup=keyboards.keyboard_privacy, parse_mode='HTML')
+        await message.answer(text=lex['pol_agree'], reply_markup=keyboards.keyboard_ok)
         # бот переходит в состояние ожидания согласия с политикой
         await state.set_state(FSM.policy)
         # сообщить админу, кто стартанул бота
@@ -125,13 +133,13 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
 
     # если это работник
     elif user_id in admins+validators:
-        await message.answer(text=lex['start'], reply_markup=keyboard_privacy, parse_mode='HTML')
-        await message.answer(text=lex['pol_agree'], reply_markup=keyboard_ok)
+        await message.answer(text=lex['start'], reply_markup=keyboards.keyboard_privacy, parse_mode='HTML')
+        await message.answer(text=lex['pol_agree'], reply_markup=keyboards.keyboard_ok)
         await state.set_state(FSM.policy)
 
     # если юзер уже в БД и просто снова нажал старт
     else:
-        await bot.send_message(text=lex['start_again'], chat_id=user_id, reply_markup=keyboard_user)
+        await bot.send_message(text=lex['start_again'], chat_id=user_id, reply_markup=keyboards.keyboard_user)
         await log(logs, user.id, f'start_again')
 
 
@@ -176,7 +184,7 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     # выдать инструкцию и примеры
     msg_to_pin = await bot.send_message(text=lex['instruct1'], chat_id=worker.id, parse_mode='HTML')
     await bot.send_message(text=f"{lex['instruct2']}\n\n{lex['full_hd']}", chat_id=worker.id, parse_mode='HTML',
-                           disable_web_page_preview=True, reply_markup=keyboard_user)
+                           disable_web_page_preview=True, reply_markup=keyboards.keyboard_user)
     url_exmpl = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
     await bot.send_photo(chat_id=worker.id, photo=URLInputFile(url_exmpl), caption='Пример всех 15 фото')
     # закреп
@@ -268,7 +276,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     if more_tasks:
         # Бот ожидает нажатия /next
         await state.set_state(FSM.done_a_task)
-        await msg.reply(text=lex['receive'].format(sent_file[-2:]), reply_markup=keyboard_user)
+        await msg.reply(text=lex['receive'].format(sent_file[-2:]), reply_markup=keyboards.keyboard_user)
 
     # если был отправлен последний файл, то они идут на проверку
     else:
@@ -315,7 +323,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
         send_to = validator if validator else admins[0]
         await bot.send_message(chat_id=send_to, text=f'{lex["adm_review"]} id{user}?\n{msg.from_user.full_name}'
-                                                     f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboard_admin)
+                               f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboards.keyboard_admin)
 
 
 # команда /cancel - отменить отправленный файл

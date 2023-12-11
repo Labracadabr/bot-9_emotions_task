@@ -4,7 +4,7 @@ from bot_logic import *
 from config import Config, load_config
 import keyboards
 from settings import *
-from lexic import lex
+from lexic_old import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import CallbackQuery, Message, URLInputFile
@@ -17,52 +17,11 @@ TKN: str = config.tg_bot.token
 storage: MemoryStorage = MemoryStorage()
 
 
-# команда /help
-@router.message(Command(commands=['help']))
-async def comm(msg: Message):
-    user = str(msg.from_user.id)
-    await log(logs, user, msg.text)
-
-    if user in admins + validators:
-        await msg.answer(lex['adm_help'].format(len(admins), len(validators)), parse_mode='HTML')
-    else:
-        await msg.answer(lex['help'])
-
-
-# команда /language
-@router.message(Command(commands=['language']))
-async def comm(msg: Message):
-    user = str(msg.from_user.id)
-    await msg.answer('Выберите язык / Choose language', reply_markup=keyboards.keyboard_lang)
-    await log(logs, user, msg.text)
-
-
-
-# команда /instruct
-@router.message(Command(commands=['instruct']))
-async def comm(msg: Message):
-    user = str(msg.from_user.id)
-    await log(logs, user, msg.text)
-
-    # текст
-    await msg.answer(lex['instruct1'], parse_mode='HTML')
-
-
 # # чекнуть не в бане ли юзер
 # @router.message(Access(book['ban']))
 # async def no_access(message: Message):
 #     await log(logs, message.from_user.id, 'ban')
-#     await message.answer(lex['ban'])
-
-
-# команда /status - показать юзеру статус его заданий
-@router.message(Command(commands=['status']))
-async def process_status_command(msg: Message, bot: Bot):
-    user = str(msg.from_user.id)
-    await log(logs, user, '/status')
-
-    stat = await get_status(user)
-    await msg.answer(f'Ваши задания:\n\n{stat}', parse_mode='HTML')
+#     await message.answer(lexicon['ban'])
 
 
 # deep-link команда /start
@@ -79,11 +38,13 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         data_tsk = json.load(f)
     with open(baza_info, 'r', encoding='utf-8') as f:
         data_inf = json.load(f)
+    language = await get_pers_info(user=user_id, key='lang')
+    lexicon = load_lexicon(language)
 
     # если юзер без реферала и его раньше не было в БД: не проходит
     if user_id not in data_inf and referral not in referrals:
         # print(user_id, 'new user wrong ref:', referral)
-        await bot.send_message(chat_id=user_id, text=lex['no_ref'])
+        await bot.send_message(chat_id=user_id, text=lexicon['no_ref'])
         await log(logs, user_id, f'wrong link @{user.username}')
         return
 
@@ -92,11 +53,11 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         if user_id not in data_inf:
             print(user_id, 'new user from:', referral)
             data_tsk.setdefault(user_id, create_account(task_amount=total_tasks))
-            # data_tsk.setdefault(user_id, lex['user_account'])
+            # data_tsk.setdefault(user_id, lexicon['user_account'])
 
             # создать запись ПД
             print(user_id, 'pd created')
-            info = lex['user_pd']
+            info = lexicon['user_pd']
             info['referral'] = referral
             info['first_start'] = msg_time
             info['tg_username'] = message.from_user.username
@@ -116,8 +77,13 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             json.dump(data_tsk, f, indent=2, ensure_ascii=False)
 
         # приветствие и выдача политики
-        await message.answer(text=lex['start'], reply_markup=keyboards.keyboard_privacy, parse_mode='HTML')
-        await message.answer(text=lex['pol_agree'], reply_markup=keyboards.keyboard_ok)
+        match language:
+            case 'ru':
+                await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_ru, parse_mode='HTML')
+            case 'en':
+                await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_en, parse_mode='HTML')
+        await message.answer(text=lexicon['pol_agree'], reply_markup=keyboards.keyboard_ok)
+
         # бот переходит в состояние ожидания согласия с политикой
         await state.set_state(FSM.policy)
         # сообщить админу, кто стартанул бота
@@ -133,13 +99,13 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
 
     # если это работник
     elif user_id in admins+validators:
-        await message.answer(text=lex['start'], reply_markup=keyboards.keyboard_privacy, parse_mode='HTML')
-        await message.answer(text=lex['pol_agree'], reply_markup=keyboards.keyboard_ok)
+        await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_ru, parse_mode='HTML')
+        await message.answer(text=lexicon['pol_agree'], reply_markup=keyboards.keyboard_ok)
         await state.set_state(FSM.policy)
 
     # если юзер уже в БД и просто снова нажал старт
     else:
-        await bot.send_message(text=lex['start_again'], chat_id=user_id, reply_markup=keyboards.keyboard_user)
+        await bot.send_message(text=lexicon['start_again'], chat_id=user_id, reply_markup=keyboards.keyboard_user)
         await log(logs, user.id, f'start_again')
 
 
@@ -148,6 +114,8 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
 async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     user = str(message.from_user.id)
     await log(logs, user, '/next')
+    language = await get_pers_info(user=user, key='lang')
+    lexicon = load_lexicon(language)
 
     # Найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
     file_num = find_next_task(user)
@@ -171,66 +139,75 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 
     # если задания кончились или не начались
     if not file_num:
-        await bot.send_message(chat_id=user, text=lex['no_more'], parse_mode='HTML')
+        await bot.send_message(chat_id=user, text=lexicon['no_more'], parse_mode='HTML')
 
 
 # юзер согласен с политикой ✅
 @router.callback_query(F.data == "ok_pressed", StateFilter(FSM.policy))
 async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
-    worker = callback.from_user
-    print(worker.id, 'privacy_ok')
-    await log(logs, worker.id, 'privacy_ok')
+    user = callback.from_user
+    await log(logs, user.id, 'privacy_ok')
+    language = await get_pers_info(user=str(user.id), key='lang')
+    lexicon = load_lexicon(language)
 
     # выдать инструкцию и примеры
-    msg_to_pin = await bot.send_message(text=lex['instruct1'], chat_id=worker.id, parse_mode='HTML')
-    await bot.send_message(text=f"{lex['instruct2']}\n\n{lex['full_hd']}", chat_id=worker.id, parse_mode='HTML',
+    msg_to_pin = await bot.send_message(text=lexicon['instruct1'], chat_id=user.id, parse_mode='HTML')
+    await bot.send_message(text=f"{lexicon['instruct2']}\n\n{lexicon['full_hd']}", chat_id=user.id, parse_mode='HTML',
                            disable_web_page_preview=True, reply_markup=keyboards.keyboard_user)
     url_exmpl = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
-    await bot.send_photo(chat_id=worker.id, photo=URLInputFile(url_exmpl), caption='Пример всех 15 фото')
+    await bot.send_photo(chat_id=user.id, photo=URLInputFile(url_exmpl), caption='Пример всех 15 фото')
     # закреп
-    await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker.id, disable_notification=True)
+    await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=user.id, disable_notification=True)
     await state.clear()
 
 
 # если юзер пишет что-то не нажав ✅
 @router.message(StateFilter(FSM.policy))
 async def privacy_missing(msg: Message):
+    language = await get_pers_info(user=str(msg.from_user.id), key='lang')
+    lexicon = load_lexicon(language)
     await log(logs, msg.from_user.id, 'privacy_missing')
-    await msg.answer(text=lex['privacy_missing'])
+    await msg.answer(text=lexicon['privacy_missing'])
 
 
 # юзер отправил альбом: не принимается
 @router.message(F.media_group_id)
 async def alb(msg: Message):
-    worker = msg.from_user
-    await log(logs, worker.id, 'album')
-    await msg.reply(lex['album'])
+    user = msg.from_user
+    language = await get_pers_info(user=str(user.id), key='lang')
+    lexicon = load_lexicon(language)
+    await log(logs, user.id, 'album')
+    await msg.reply(lexicon['album'])
 
 
 # юзер отправил сжатый файл: не принимается
 @router.message(F.content_type.in_({'photo', 'video'}))
 async def compressed_pic(msg: Message):
+    language = await get_pers_info(user=str(msg.from_user.id), key='lang')
+    lexicon = load_lexicon(language)
     await log(logs, msg.from_user.id, 'compressed_file')
-    await msg.reply(lex['full_hd'], parse_mode='HTML')
+    await msg.reply(lexicon['full_hd'], parse_mode='HTML')
 
 
 # юзер отправил норм файл
 @router.message(F.content_type.in_({'document'}), StateFilter(FSM.ready_for_next))
 async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     user = str(msg.from_user.id)
+    language = await get_pers_info(user=str(msg.from_user.id), key='lang')
+    lexicon = load_lexicon(language)
 
     # отклонить если файл тяжелее 50 мб
     size = msg.document.file_size
     if size > 50_000_000:
         await log(logs, user, f'size {size}')
-        await msg.answer(text=lex['big_file'])
+        await msg.answer(text=lexicon['big_file'])
         return
 
     # отклонить если файл тяжелее 2 мб
     if size < 2_000_000:
         megabyte = round(size/1_000_000, 2)
         await log(logs, user, f'size {size}')
-        await msg.answer(text=lex['small_file'].format(megabyte))
+        await msg.answer(text=lexicon['small_file'].format(megabyte))
         return
 
     # отклонить если горизонтальная съемка (если у файла есть thumbnail, то можно посчитать его размеры)
@@ -240,7 +217,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         if width >= height:
             await log(logs, user, f'wrong orient')
             print('wrong orient', f'width: {width}, height: {height}')
-            await msg.answer(text=lex['vert'])
+            await msg.answer(text=lexicon['vert'])
             return
 
     # чтение БД
@@ -276,7 +253,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     if more_tasks:
         # Бот ожидает нажатия /next
         await state.set_state(FSM.done_a_task)
-        await msg.reply(text=lex['receive'].format(sent_file[-2:]), reply_markup=keyboards.keyboard_user)
+        await msg.reply(text=lexicon['receive'].format(sent_file[-2:]), reply_markup=keyboards.keyboard_user)
 
     # если был отправлен последний файл, то они идут на проверку
     else:
@@ -304,7 +281,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         output = await send_files(user, 'review')
 
         # уведомить юзера, админов, внести в логи и в консоль
-        await msg.reply(lex['all_sent'])
+        await msg.reply(lexicon['all_sent'])
         await log(logs, user, f'SENT_ALL_FILES: {len(output)}')
         for i in admins + [validator]:
             if i:
@@ -322,88 +299,17 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
         # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
         send_to = validator if validator else admins[0]
-        await bot.send_message(chat_id=send_to, text=f'{lex["adm_review"]} id{user}?\n{msg.from_user.full_name}'
+        await bot.send_message(chat_id=send_to, text=f'{lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
                                f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboards.keyboard_admin)
-
-
-# команда /cancel - отменить отправленный файл
-@router.message(Command(commands=['cancel']))
-async def cancel_command(msg: Message, bot: Bot, state: FSMContext):
-    user = str(msg.from_user.id)
-    await log(logs, user, '/cancel')
-    with open(baza_task, 'r') as f:
-        data = json.load(f)
-    if user in data:
-        # проверить, не отправлены ли все файлы уже на проверку
-        statuses = set(data[user][i][0] for i in data[user])
-        if 'status' in statuses or 'reject' in statuses:
-            await bot.send_message(chat_id=user, text=lex['cancel'])
-            # Бот ожидает номера заданий
-            await state.set_state(FSM.cancelation)
-        else:
-            await bot.send_message(chat_id=user, text=lex['cancel_fail'])
-    else:
-        await bot.send_message(chat_id=user, text=lex['cancel_fail'])
-
-
-# удаление отмененных файлов
-@router.message(F.content_type.in_({'text'}), StateFilter(FSM.cancelation))
-async def cancel(msg: Message, bot: Bot, state: FSMContext):
-    user = str(msg.from_user.id)
-
-    # обработать номера заданий
-    nums_to_cancel = []
-    for num in msg.text.split():
-        #  проверка правильности ввода
-        if num.isnumeric() and len(num) == 2:
-            nums_to_cancel.append(num)
-
-        # если номера указаны неверно
-        else:
-            await msg.reply(lex['cancel_wrong_form'])
-            await log(logs, user, 'cancel_wrong_form')
-            return
-
-    # если все номера указаны верно
-    if len(msg.text.split()) == len(nums_to_cancel):
-        # прочитать данные из БД
-        with open(baza_task, 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        tasks = data[user]
-
-        # если это задание на проверке, то обнулить
-        cancelled, not_found = [], []
-        for num in nums_to_cancel:
-            try:
-                if tasks[f'file{num}'][0] == 'review':
-                    tasks[f'file{num}'] = ["status", "file"]
-                    cancelled.append(num)
-                else:
-                    not_found.append(num)
-            except KeyError:
-                not_found.append(num)
-
-        # сохранить статусы заданий
-        data.setdefault(user, tasks)
-        with open(baza_task, 'w', encoding='utf-8') as f:
-            json.dump(data, f, indent=2, ensure_ascii=False)
-        print(user, 'files cancelled', cancelled)
-
-        # уведомить юзера о результате
-        if cancelled:
-            await msg.reply(text=lex['cancel_ok']+', '.join(cancelled))
-        if not_found:
-            await msg.answer(text=lex['cancel_not_found']+', '.join(not_found))
-        await state.clear()
-        await log(logs, user, f'cancelled {cancelled}, not found {not_found}')
 
 
 # юзер что-то пишет
 @router.message(~Access(admins+validators), F.content_type.in_({'text'}))
 async def usr_txt2(msg: Message, bot: Bot):
     await log(logs, msg.from_user.id, f'msg_to_admin: {msg.text}')
+    lexicon =  __import__('lexic.adm}', fromlist=[''])
 
     # показать админам
     for i in admins:
-        await bot.send_message(chat_id=i, text=f'{lex["msg_to_admin"]} @{msg.from_user.username} {msg.from_user.full_name}'
+        await bot.send_message(chat_id=i, text=f'{lexicon["msg_to_admin"]} @{msg.from_user.username} {msg.from_user.full_name}'
                                                f' id{msg.from_user.id}: \n\n{msg.text}')

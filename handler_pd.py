@@ -1,10 +1,9 @@
 import json
 from aiogram import Router, Bot, F
 from aiogram.filters import Command, StateFilter
-from bot_logic import log, FSM
+from bot_logic import log, FSM, get_pers_info, load_lexicon
 from config import Config, load_config
 from settings import baza_info, logs
-from lexic import lex
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, CallbackQuery
@@ -22,6 +21,8 @@ storage: MemoryStorage = MemoryStorage()
 @router.message(Command(commands=['personal']))
 async def personal_command(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
+    language = await get_pers_info(user=user, key='lang')
+    lexicon = load_lexicon(language)
     await log(logs, user, msg.text)
     # чтение БД
     with open(baza_info, 'r', encoding='utf-8') as f:
@@ -33,7 +34,7 @@ async def personal_command(msg: Message, state: FSMContext):
     except KeyError:
         # создать запись ПД
         await log(logs, user, 'pd created')
-        info = lex['user_pd']
+        info = lexicon['user_pd']
         info['first_start'] = msg.date.strftime("%d/%m/%Y %H:%M")
         info['tg_username'] = msg.from_user.username
         info['tg_fullname'] = msg.from_user.full_name
@@ -50,10 +51,10 @@ async def personal_command(msg: Message, state: FSMContext):
     if not data_inf[user]['race']:
         # спросить возраст
         await state.set_state(FSM.age)
-        await msg.answer(lex['age'])
+        await msg.answer(lexicon['age'])
 
     else:
-        await msg.answer(lex['pd_ok'])
+        await msg.answer(lexicon['pd_ok'])
         await log(logs, user, 'pd already ok')
 
 
@@ -61,6 +62,8 @@ async def personal_command(msg: Message, state: FSMContext):
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.age))
 async def personal_age(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
+    language = await get_pers_info(user=user, key='lang')
+    lexicon = load_lexicon(language)
     age = msg.text
     await log(logs, user, f'age: {age}')
 
@@ -76,16 +79,19 @@ async def personal_age(msg: Message, state: FSMContext):
             json.dump(data_inf, f, indent=2, ensure_ascii=False)
         # спросить пол
         await state.set_state(FSM.gender)
-        await msg.answer(text=lex['gender'])
+        await msg.answer(text=lexicon['gender'])
 
     else:
-        await msg.reply(text=lex['age_bad'])
+        await msg.reply(text=lexicon['age_bad'])
 
 
 # юзер отправляет пол > спросить расу
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.gender))
 async def personal_sex(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
+    language = await get_pers_info(user=user, key='lang')
+    lexicon = load_lexicon(language)
+
     gender = msg.text.lower()
     await log(logs, user, f'gender: {gender}')
 
@@ -101,16 +107,19 @@ async def personal_sex(msg: Message, state: FSMContext):
             json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
         # спросить race
-        await msg.answer(text=lex['race'], reply_markup=keyboard_race)
+        await msg.answer(text=lexicon['race'], reply_markup=keyboard_race)
         await state.set_state(FSM.race)
     else:
-        await msg.reply(text=lex['gender_bad'])
+        await msg.reply(text=lexicon['gender_bad'])
 
 
 # юзер отправляет расу > спросить страну
 @router.callback_query(StateFilter(FSM.race))
 async def personal_sex(msg: CallbackQuery, state: FSMContext, bot: Bot):
     user = str(msg.from_user.id)
+    language = await get_pers_info(user=user, key='lang')
+    lexicon = load_lexicon(language)
+
     race = msg.data
     await log(logs, user, f'race: {race}')
 
@@ -124,7 +133,7 @@ async def personal_sex(msg: CallbackQuery, state: FSMContext, bot: Bot):
         json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
     # спросить страну
-    await bot.send_message(chat_id=user, text=lex['country'])
+    await bot.send_message(chat_id=user, text=lexicon['country'])
     await state.set_state(FSM.country)
 
 
@@ -132,6 +141,9 @@ async def personal_sex(msg: CallbackQuery, state: FSMContext, bot: Bot):
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.country))
 async def personal_country(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
+    language = await get_pers_info(user=user, key='lang')
+    lexicon = load_lexicon(language)
+
     country = msg.text.capitalize()
     await log(logs, user, f'country: {country}')
 
@@ -148,21 +160,21 @@ async def personal_country(msg: Message, state: FSMContext):
         # если асессор из TD, то спросить фио
         if data_inf[user]['referral'].lower() == 'td':
             await state.set_state(FSM.fio)
-            await msg.answer(text=lex['fio'])
+            await msg.answer(text=lexicon['fio'])
             await log(logs, user, 'ask fio')
 
         # если толокер, то дать id
         elif data_inf[user]['referral'].lower() == 'toloka':
-            await msg.answer(text=lex['tlk_ok'].format(user), parse_mode='HTML')
+            await msg.answer(text=lexicon['tlk_ok'].format(user), parse_mode='HTML')
             # await msg.answer(text=f'<code>{user}</code>', parse_mode='HTML')
             await log(logs, user, 'toloka ok')
             await state.clear()
 
         else:
-            await msg.answer(text=lex['pd_ok'])
+            await msg.answer(text=lexicon['pd_ok'])
             await state.clear()
     else:
-        await msg.answer(text=lex['pd_ok'])
+        await msg.answer(text=lexicon['pd_ok'])
         await state.clear()
 
 
@@ -170,6 +182,9 @@ async def personal_country(msg: Message, state: FSMContext):
 @router.message(F.content_type.in_({'text'}), StateFilter(FSM.fio))
 async def personal_fio(msg: Message, state: FSMContext):
     user = str(msg.from_user.id)
+    language = await get_pers_info(user=user, key='lang')
+    lexicon = load_lexicon(language)
+
     fio = msg.text
     print(user, fio)
     await log(logs, user, f'fio: {fio}')
@@ -186,9 +201,9 @@ async def personal_fio(msg: Message, state: FSMContext):
         with open(baza_info, 'w', encoding='utf-8') as f:
             json.dump(data_inf, f, indent=2, ensure_ascii=False)
 
-        await msg.answer(text=lex['pd_ok'])
+        await msg.answer(text=lexicon['pd_ok'])
         await log(logs, user, 'fio ok')
         await state.clear()
     else:
-        await msg.reply(text=lex['fio_bad'])
+        await msg.reply(text=lexicon['fio_bad'])
 

@@ -1,7 +1,6 @@
 from aiogram import Router, Bot, F
 from settings import admins, baza_task, baza_info, logs, validators, check_files
 from bot_logic import *
-from lexic import lex
 import json
 import os
 from config import Config, load_config
@@ -10,8 +9,6 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
-# import pygsheets
-# import googleapiclient.errors
 
 
 # Инициализация
@@ -39,6 +36,8 @@ async def admin_ok(callback: CallbackQuery, bot: Bot):
 
     # worker = вытащить id из текста сообщения
     worker = id_from_text(msg.text)
+    language = await get_pers_info(user=worker, key='lang')
+    lexicon = load_lexicon(language)
 
     # принять все файлы
     await accept_user(worker)
@@ -47,7 +46,7 @@ async def admin_ok(callback: CallbackQuery, bot: Bot):
     # убрать кнопки админа
     await bot.edit_message_text(f'{msg.text}\n✅ Принято', msg.chat.id, msg.message_id, reply_markup=None)
     # Дать юзеру аппрув
-    await bot.send_message(chat_id=worker, text=lex['all_approved']+f'id{worker}')
+    await bot.send_message(chat_id=worker, text=lexicon['all_approved']+f'id{worker}')
     # сохранить ссылки
     path = await get_tsv(TKN, bot, msg, worker)
     # отправить tsv админу
@@ -81,6 +80,9 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
     # worker = вытащить id из текста сообщения
     worker = id_from_text(orig.text)
+    language = await get_pers_info(user=worker, key='lang')
+    lexicon = load_lexicon(language)
+
     txt_for_worker = '\n\n'
 
     # если админ тупит
@@ -90,7 +92,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
         return
 
     # если админ написал причину отказа❌
-    elif lex["adm_review"] in orig.text or orig.text.startswith('reject id'):
+    elif lexicon["adm_review"] in orig.text or orig.text.startswith('reject id'):
         print('adm reject')
         # записать номера отклоненных файлов
         rejected_files = []
@@ -99,7 +101,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
             file_num = line.split()[0]
             # убедиться, что каждая строка начинается с номера задания
             if not file_num.isnumeric():
-                await bot.send_message(orig.chat.id, lex['wrong_rej_form'])
+                await bot.send_message(orig.chat.id, lexicon['wrong_rej_form'])
                 await log(logs, worker, 'reject_fail')
                 return
             if int(file_num) > total_tasks:
@@ -145,7 +147,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
         # сообщить юзеру об отказе
         try:
-            await bot.send_message(chat_id=worker, text=lex['reject'], parse_mode='HTML')
+            await bot.send_message(chat_id=worker, text=lexicon['reject'], parse_mode='HTML')
             msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
             await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
             await log(logs, worker, 'rejected_delivered')
@@ -196,7 +198,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
         await log(logs, worker, f'adm_reply: {admin_response}')
         # отпр ответ юзеру и всем админам
         for i in [worker]+admins:
-            await bot.send_message(chat_id=i, text=lex['msg_from_admin']+txt_for_worker+admin_response)
+            await bot.send_message(chat_id=i, text=lexicon['msg_from_admin']+txt_for_worker+admin_response)
 
 
 # админ просит обнулить юзера
@@ -276,7 +278,7 @@ async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
         json.dump(data_tsk, f1, indent=2, ensure_ascii=False)
         json.dump(data_inf, f2, indent=2, ensure_ascii=False)
 
-    await msg.answer(lex['deleted'])
+    await msg.answer('Удалено, вот бекап до удаления')
     await state.clear()
 
 
@@ -326,7 +328,7 @@ async def adm_msg(msg: Message, bot: Bot):
         # отправить и удалить
         await bot.send_document(chat_id=admin, document=FSInputFile(path))
         os.remove(path)
-        await msg.answer(user_data)
+        await msg.answer(str(user_data))
         await log(logs, admin, 'admin_request_pd_'+worker)
 
     # показать существующие реф ссылки
@@ -345,12 +347,14 @@ async def adm_msg(msg: Message, bot: Bot):
     elif txt.lower().startswith('accept id'):
         # worker = вытащить id из текста сообщения
         worker = id_from_text(txt)
+        language = await get_pers_info(user=worker, key='lang')
+        lexicon = load_lexicon(language)
 
         # принять все файлы
         await accept_user(worker)
         await log(logs, worker, 'admin_accept_command')
         # Дать юзеру аппрув
-        await bot.send_message(chat_id=worker, text=lex['all_approved'] + f'id{worker}')
+        await bot.send_message(chat_id=worker, text=lexicon['all_approved'] + f'id{worker}')
         #  сообщить админам
         for i in admins:
             await bot.send_message(
@@ -395,7 +399,7 @@ async def adm_msg(msg: Message, bot: Bot):
             json.dump(users, f, indent=2, ensure_ascii=False)
 
     elif id_from_text(txt):
-        if lex["adm_review"] in txt or txt.lower().startswith('reject id'):
+        if adm_lexicon["adm_review"] in txt or txt.lower().startswith('reject id'):
             await msg.answer('Можешь написать отказ ответом на свое сообщение')
         # else:
         #     await msg.answer(f'Ответь на свое сообщение, и я покажу его юзеру id{id_from_text(txt)}')

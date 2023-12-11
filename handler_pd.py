@@ -51,7 +51,6 @@ async def personal_command(msg: Message, state: FSMContext):
         # спросить возраст
         await state.set_state(FSM.age)
         await msg.answer(lex['age'])
-        await log(logs, user, 'ask age')
 
     else:
         await msg.answer(lex['pd_ok'])
@@ -78,8 +77,6 @@ async def personal_age(msg: Message, state: FSMContext):
         # спросить пол
         await state.set_state(FSM.gender)
         await msg.answer(text=lex['gender'])
-        print(user, 'ask gender')
-        await log(logs, user, 'ask gender')
 
     else:
         await msg.reply(text=lex['age_bad'])
@@ -156,19 +153,16 @@ async def personal_country(msg: Message, state: FSMContext):
 
         # если толокер, то дать id
         elif data_inf[user]['referral'].lower() == 'toloka':
-            print(user, 'toloka')
-            await msg.answer(text=lex['tlk_ok'])
-            await msg.answer(text=f'<code>{user}</code>', parse_mode='HTML')
-            await log(logs, user, 'tlk ok')
+            await msg.answer(text=lex['tlk_ok'].format(user), parse_mode='HTML')
+            # await msg.answer(text=f'<code>{user}</code>', parse_mode='HTML')
+            await log(logs, user, 'toloka ok')
             await state.clear()
 
         else:
             await msg.answer(text=lex['pd_ok'])
-            await log(logs, user, 'country ok')
             await state.clear()
     else:
         await msg.answer(text=lex['pd_ok'])
-        await log(logs, user, 'country ok')
         await state.clear()
 
 

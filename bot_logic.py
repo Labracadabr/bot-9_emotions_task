@@ -1,4 +1,6 @@
 import json
+from pprint import pprint
+
 from aiogram.filters import BaseFilter
 from aiogram.filters.state import State, StatesGroup
 import os
@@ -217,6 +219,16 @@ async def accept_user(worker) -> None:
     with open(baza_task, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
+    # with open(baza_task, 'r', encoding='utf-8') as f:
+    #     info = json.load(f)
+    #
+    # info['accept_date'] = msg_time
+    #
+    # # сохранить новые данные
+    # info.setdefault(worker, info)
+    # with open(baza_info, 'w', encoding='utf-8') as f:
+    #     json.dump(info, f, indent=2, ensure_ascii=False)
+
 
 # отправить в чат файлы юзера в указанном статусе
 async def send_files(worker, status) -> list | None:
@@ -255,3 +267,34 @@ async def send_files(worker, status) -> list | None:
             output.append((file_id, task_message,))
 
     return output
+
+
+# получить значение
+async def get_pers_info(user: str, key: str):
+    with open(baza_info, 'r', encoding='utf-8') as f:
+        data: dict = json.load(f)
+    user_data: dict = data.get(user)
+    if not user_data:
+        await log(logs, user, f'user not found')
+        return None
+    value = user_data.get(key)
+    return value
+
+
+# задать значение
+async def set_pers_info(user: str, key: str, val):
+    # прочитать бд
+    with open(baza_info, 'r', encoding='utf-8') as f:
+        data: dict = json.load(f)
+    user_data: dict = data.get(user)
+    if not user_data:
+        await log(logs, user, f'user not found')
+        return None
+    old_val = user_data.get(key)
+
+    # сохр изменение
+    user_data[key] = val
+    data.setdefault(user, user_data)
+    with open(baza_info, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+    await log(logs, user, f'{key}: {old_val} => {val}')

@@ -5,7 +5,6 @@ from aiogram.filters import BaseFilter
 from aiogram.filters.state import State, StatesGroup
 import os
 from settings import *
-from lexic import lex
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, CallbackQuery, FSInputFile
 from aiogram import Bot
@@ -47,8 +46,19 @@ class FSM(StatesGroup):
     race = State()              # Заполнение перс данных
     polling = State()           # тест для юзера
 
+
+# выбор языка
+def load_lexicon(language='en'):
+    try:
+        lexicon_module = __import__(f'lexic.{language}', fromlist=[''])
+        return lexicon_module.lexicon
+    except ImportError:
+        return None
+
+
 # Запись данных item в указанный csv file по ключу key
 async def log(file, key, item):
+    key = str(key)
     t = str(datetime.now()).split('.')[0]
     # сохранить в csv
     try:
@@ -74,7 +84,7 @@ async def log(file, key, item):
 
 
 # дать статус заданий по айди юзера
-async def get_status(user_id):
+async def get_status(user_id) -> dict:
     with open(baza_task, 'r') as f:
         data = json.load(f)
     non = rev = rej = acc = 0
@@ -92,7 +102,14 @@ async def get_status(user_id):
                 acc += 1
     except KeyError:
         non = total_tasks
-    return f'✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n⏳ На проверке - {rev}\n💪 Осталось сделать - {non}'
+    output = {
+        'non': non,
+        'rev': rev,
+        'rej': rej,
+        'acc': acc,
+    }
+    # return f'✅ Принято - {acc}\n🔁 Надо переделать - {rej}\n⏳ На проверке - {rev}\n💪 Осталось сделать - {non}'
+    return output
 
 
 # айди из текста
@@ -297,4 +314,5 @@ async def set_pers_info(user: str, key: str, val):
     data.setdefault(user, user_data)
     with open(baza_info, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
-    await log(logs, user, f'{key}: {old_val} => {val}')
+    print(user, f'{key}: {old_val} => {val}')
+    # await log(logs, user, f'{key}: {old_val} => {val}')

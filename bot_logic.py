@@ -47,8 +47,8 @@ class FSM(StatesGroup):
     polling = State()           # тест для юзера
 
 
-# выбор языка
-def load_lexicon(language='en'):
+# выбор языка. на входе языковой код (по дефолту en), на выходе словарь с лексикой этого языка
+def load_lexicon(language: str = 'en') -> dict:
     try:
         lexicon_module = __import__(f'lexic.{language}', fromlist=[''])
         return lexicon_module.lexicon
@@ -263,7 +263,7 @@ async def send_files(worker, status) -> list | None:
 
     # чтение инстр заданий для подписи к файлам
     all_tasks_text = []
-    with open(tasks_tsv, 'r', encoding='utf-8') as f:
+    with open(tasks_tsv.format('ru'), 'r', encoding='utf-8') as f:
         next_task = []
         for line in f.readlines():
             all_tasks_text.append(line.split('\t'))

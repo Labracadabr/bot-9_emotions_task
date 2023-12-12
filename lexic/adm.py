@@ -1,4 +1,4 @@
-adm_lexicon: dict[str:str] = {
+lexicon: dict[str:str] = {
     # admin
     'adm_review': 'Принять ВСЕ файлы от',
     'msg_to_admin': '📩 Сообщение от',

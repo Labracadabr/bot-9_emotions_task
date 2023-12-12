@@ -1,5 +1,8 @@
 import os
 
+# список языков
+langs = ('ru', 'en')
+
 # tg id работников
 dima = "992863889"
 ilya = "899038082"
@@ -24,7 +27,7 @@ total_tasks: int = 15
 baza_task = 'user_status.json'
 baza_info = 'user_info.json'
 logs = 'logs.tsv'
-tasks_tsv = 'tasks.tsv'
+tasks_tsv = 'lexic/tasks_{}.tsv'
 
 # каналы сбора
 referrals = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'schura', 'hanna', 'toloka', 'cat', 'airplane', 'one_more', 'good')
@@ -40,7 +43,7 @@ log_channel_id = '-1002105757977'
 
 # проверить все ли на месте
 def check_files():
-    file_list = [baza_task, baza_info, logs, tasks_tsv]
+    file_list = [baza_task, baza_info, logs]+[tasks_tsv.format(i) for i in langs]
     for file in file_list:
         if not os.path.isfile(file):
             if file.endswith('json'):
@@ -52,15 +55,15 @@ def check_files():
                     print('Отсутствующий файл создан:', file)
                     print('\t'.join(('Time', 'User', 'Action')), file=f)
 
-            elif file == tasks_tsv:
-                print("Ошибка! Отсутствует файл с заданиями")
+            elif 'tasks' in file:
+                print("Ошибка! Отсутствует файл с заданиями", file)
                 exit()
 
-    with open(tasks_tsv, 'r', encoding='utf-8') as f:
-        task_list = f.readlines()
-        if not len(task_list) == total_tasks:
-            print('Ошибка! Не совпадает число заданий')
-            exit()
+    # with open(tasks_tsv, 'r', encoding='utf-8') as f:
+    #     task_list = f.readlines()
+    #     if not len(task_list) == total_tasks:
+    #         print('Ошибка! Не совпадает число заданий')
+    #         exit()
     print('OK')
 
 

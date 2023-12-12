@@ -81,7 +81,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
     # worker = вытащить id из текста сообщения
     worker = id_from_text(orig.text)
     language = await get_pers_info(user=worker, key='lang')
-    lexicon = load_lexicon(language)
+    user_lexicon = load_lexicon(language)
+    adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
 
     txt_for_worker = '\n\n'
 
@@ -92,7 +93,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
         return
 
     # если админ написал причину отказа❌
-    elif lexicon["adm_review"] in orig.text or orig.text.startswith('reject id'):
+    elif adm_lexicon["adm_review"] in orig.text or orig.text.startswith('reject id'):
         print('adm reject')
         # записать номера отклоненных файлов
         rejected_files = []
@@ -101,7 +102,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
             file_num = line.split()[0]
             # убедиться, что каждая строка начинается с номера задания
             if not file_num.isnumeric():
-                await bot.send_message(orig.chat.id, lexicon['wrong_rej_form'])
+                await bot.send_message(orig.chat.id, adm_lexicon['wrong_rej_form'])
                 await log(logs, worker, 'reject_fail')
                 return
             if int(file_num) > total_tasks:
@@ -147,7 +148,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
         # сообщить юзеру об отказе
         try:
-            await bot.send_message(chat_id=worker, text=lexicon['reject'], parse_mode='HTML')
+            await bot.send_message(chat_id=worker, text=user_lexicon['reject'], parse_mode='HTML')
             msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
             await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
             await log(logs, worker, 'rejected_delivered')
@@ -198,7 +199,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
         await log(logs, worker, f'adm_reply: {admin_response}')
         # отпр ответ юзеру и всем админам
         for i in [worker]+admins:
-            await bot.send_message(chat_id=i, text=lexicon['msg_from_admin']+txt_for_worker+admin_response)
+            await bot.send_message(chat_id=i, text=user_lexicon['msg_from_admin']+txt_for_worker+admin_response)
 
 
 # админ просит обнулить юзера
@@ -287,6 +288,7 @@ async def adm_deleted(msg: Message, bot: Bot, state: FSMContext):
 async def adm_msg(msg: Message, bot: Bot):
     admin = str(msg.from_user.id)
     txt = msg.text
+    adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
 
     if txt.startswith(TKN[:4]):
         # рассылка всем юзерам

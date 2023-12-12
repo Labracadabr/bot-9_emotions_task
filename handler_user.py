@@ -1,10 +1,12 @@
 from aiogram import Router, Bot, F
-from aiogram.filters import Command, CommandStart, StateFilter, CommandObject
+from aiogram.filters import Command, CommandStart, StateFilter, CommandObject, or_f
+
+import template_pd
 from bot_logic import *
 from config import Config, load_config
 import keyboards
 from settings import *
-from lexic_old import lex
+import template_pd
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import CallbackQuery, Message, URLInputFile
@@ -38,7 +40,14 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         data_tsk = json.load(f)
     with open(baza_info, 'r', encoding='utf-8') as f:
         data_inf = json.load(f)
-    language = await get_pers_info(user=user_id, key='lang')
+
+    # язык
+    if user_id in data_inf:  # если это не первый старт - взять язык из памяти
+        language = await get_pers_info(user=user_id, key='lang')
+    else:  # если первый - использовать язык приложения
+        language = str(message.from_user.language_code).lower()
+        # сохранить значение
+        await set_pers_info(user=user_id, key='lang', val=language)
     lexicon = load_lexicon(language)
 
     # если юзер без реферала и его раньше не было в БД: не проходит
@@ -57,7 +66,7 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
 
             # создать запись ПД
             print(user_id, 'pd created')
-            info = lexicon['user_pd']
+            info = template_pd.user_pd
             info['referral'] = referral
             info['first_start'] = msg_time
             info['tg_username'] = message.from_user.username
@@ -97,15 +106,22 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             f'{msg_time}, {user.full_name}, @{user.username}, id {user.id}, {user.language_code}, start={referral}')
         await log(logs, user.id, f'/start={referral}')
 
-    # если это работник
-    elif user_id in admins+validators:
-        await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_ru, parse_mode='HTML')
-        await message.answer(text=lexicon['pol_agree'], reply_markup=keyboards.keyboard_ok)
-        await state.set_state(FSM.policy)
+    # # если это работник
+    # elif user_id in admins+validators:
+    #     await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_ru, parse_mode='HTML')
+    #     await message.answer(text=lexicon['pol_agree'], reply_markup=keyboards.keyboard_ok)
+    #     await state.set_state(FSM.policy)
 
     # если юзер уже в БД и просто снова нажал старт
     else:
-        await bot.send_message(text=lexicon['start_again'], chat_id=user_id, reply_markup=keyboards.keyboard_user)
+        match language:
+            case 'ru':
+                await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_ru, parse_mode='HTML')
+            case 'en':
+                await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_en, parse_mode='HTML')
+        await message.answer(text=lexicon['pol_agree'], reply_markup=keyboards.keyboard_ok)
+        await state.set_state(FSM.policy)
+        # await bot.send_message(text=lexicon[''], chat_id=user_id, reply_markup=keyboards.keyboard_user)
         await log(logs, user.id, f'start_again')
 
 
@@ -122,7 +138,7 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 
     # если нашлись
     if file_num:
-        with open(tasks_tsv, 'r', encoding='utf-8') as f:
+        with open(tasks_tsv.format(language), 'r', encoding='utf-8') as f:
             next_task = []
             for line in f.readlines():
                 splited_line = line.split('\t')

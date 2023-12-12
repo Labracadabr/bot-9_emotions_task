@@ -36,7 +36,7 @@ async def comm(msg: Message):
 
 
 # юзер выбрал язык
-@router.callback_query(lambda x: x.data in {'ru', 'en'})
+@router.callback_query(lambda x: x.data in langs)
 async def lng(msg: CallbackQuery, bot: Bot):
     user = str(msg.from_user.id)
     language = msg.data
@@ -48,7 +48,7 @@ async def lng(msg: CallbackQuery, bot: Bot):
     lexicon = load_lexicon(language)
 
     # уведомить о смене
-    await bot.send_message(chat_id=user, text=f'{lexicon["lang_ok"]} {language.upper()}')
+    await bot.send_message(chat_id=user, text=lexicon["lang_ok"].format(language.upper()))
     await log(logs, user, f'language: {language}')
 
 
@@ -87,7 +87,7 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 
     # если нашлись
     if file_num:
-        with open(tasks_tsv, 'r', encoding='utf-8') as f:
+        with open(tasks_tsv.format(language), 'r', encoding='utf-8') as f:
             next_task = []
             for line in f.readlines():
                 splited_line = line.split('\t')

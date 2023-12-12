@@ -190,35 +190,40 @@ async def compressed_pic(msg: Message):
 
 
 # юзер отправил норм файл
-@router.message(F.content_type.in_({'document'}), StateFilter(FSM.ready_for_next))
+@router.message(or_f(F.text == '#', F.content_type.in_({'document'})), StateFilter(FSM.ready_for_next))
 async def file_ok(msg: Message, bot: Bot, state: FSMContext):
     user = str(msg.from_user.id)
     language = await get_pers_info(user=str(msg.from_user.id), key='lang')
     lexicon = load_lexicon(language)
 
-    # отклонить если файл тяжелее 50 мб
-    size = msg.document.file_size
-    if size > 50_000_000:
-        await log(logs, user, f'size {size}')
-        await msg.answer(text=lexicon['big_file'])
-        return
-
-    # отклонить если файл тяжелее 2 мб
-    if size < 2_000_000:
-        megabyte = round(size/1_000_000, 2)
-        await log(logs, user, f'size {size}')
-        await msg.answer(text=lexicon['small_file'].format(megabyte))
-        return
-
-    # отклонить если горизонтальная съемка (если у файла есть thumbnail, то можно посчитать его размеры)
-    if msg.document.thumbnail:
-        width = msg.document.thumbnail.width
-        height = msg.document.thumbnail.height
-        if width >= height:
-            await log(logs, user, f'wrong orient')
-            print('wrong orient', f'width: {width}, height: {height}')
-            await msg.answer(text=lexicon['vert'])
+    if msg.document:
+        file_id = msg.document.file_id
+        # отклонить если файл тяжелее 50 мб
+        size = msg.document.file_size
+        if size > 50_000_000:
+            await log(logs, user, f'size {size}')
+            await msg.answer(text=lexicon['big_file'])
             return
+
+        # отклонить если файл меньше 2 мб
+        if size < 2_000_000:
+            megabyte = round(size/1_000_000, 2)
+            await log(logs, user, f'size {size}')
+            await msg.answer(text=lexicon['small_file'].format(megabyte))
+            return
+
+        # отклонить если горизонтальная съемка (если у файла есть thumbnail, то можно посчитать его размеры)
+        if msg.document.thumbnail:
+            width = msg.document.thumbnail.width
+            height = msg.document.thumbnail.height
+            if width >= height:
+                await log(logs, user, f'wrong orient')
+                print('wrong orient', f'width: {width}, height: {height}')
+                await msg.answer(text=lexicon['vert'])
+                return
+    else:
+        # болванка для тестирования
+        file_id = 'BQACAgUAAxkBAAIKk2V4SQEHNsyv6Y0g4vDic0vjMUckAAKSDAACVu3AV-SnwgzXyLaBMwQ'
 
     # чтение БД
     with open(baza_task, 'r', encoding='utf-8') as f:
@@ -227,17 +232,15 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         data_inf = json.load(f)
 
     # плюсануть кол-во отправленных
-    try:
-        data_inf[user].setdefault('total_sent', data_inf[user].get('total_sent')+1)
-    except Exception as e:
-        await log(logs, user, f'small_error: {e}')
+    x = await get_pers_info(user=user, key='total_sent')
+    await set_pers_info(user=user, key='total_sent', val=x+1)
 
     # вычисляем, какое было прислано задание
     sent_file = find_next_task(user)
     await log(logs, user, f'SENT_{sent_file}')
 
     # меняем статус задания на 'review' и сохраняем file_id
-    data[user][sent_file] = ('review', msg.document.file_id)
+    data[user][sent_file] = ('review', file_id)
     tasks = data[user]
     with open(baza_task, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
@@ -299,7 +302,8 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
         # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
         send_to = validator if validator else admins[0]
-        await bot.send_message(chat_id=send_to, text=f'{lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
+        adm_lexicon = __import__('lexic.adm', fromlist=[''])
+        await bot.send_message(chat_id=send_to, text=f'{adm_lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
                                f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboards.keyboard_admin)
 
 
@@ -307,9 +311,9 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 @router.message(~Access(admins+validators), F.content_type.in_({'text'}))
 async def usr_txt2(msg: Message, bot: Bot):
     await log(logs, msg.from_user.id, f'msg_to_admin: {msg.text}')
-    lexicon =  __import__('lexic.adm}', fromlist=[''])
+    adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
 
     # показать админам
     for i in admins:
-        await bot.send_message(chat_id=i, text=f'{lexicon["msg_to_admin"]} @{msg.from_user.username} {msg.from_user.full_name}'
+        await bot.send_message(chat_id=i, text=f'{adm_lexicon["msg_to_admin"]} @{msg.from_user.username} {msg.from_user.full_name}'
                                                f' id{msg.from_user.id}: \n\n{msg.text}')

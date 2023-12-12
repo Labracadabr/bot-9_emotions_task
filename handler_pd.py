@@ -3,7 +3,7 @@ from aiogram import Router, Bot, F
 from aiogram.filters import Command, StateFilter
 from bot_logic import log, FSM, get_pers_info, load_lexicon
 from config import Config, load_config
-from settings import baza_info, logs
+from settings import baza_info, logs, verification
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, CallbackQuery
@@ -165,7 +165,7 @@ async def personal_country(msg: Message, state: FSMContext):
 
         # если толокер, то дать id
         elif data_inf[user]['referral'].lower() == 'toloka':
-            await msg.answer(text=lexicon['tlk_ok'].format(user), parse_mode='HTML')
+            await msg.answer(text=lexicon['tlk_ok'].format(verification, user), parse_mode='HTML')
             # await msg.answer(text=f'<code>{user}</code>', parse_mode='HTML')
             await log(logs, user, 'toloka ok')
             await state.clear()

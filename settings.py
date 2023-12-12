@@ -37,8 +37,8 @@ referrals = ('smeight', 'gulnara', 'its_dmitrii', 'Natali', 'TD', 'Marina', 'sch
 # log_channel_id = ''
 log_channel_id = '-1002105757977'
 
-# # игнорить ли сообщения, присланные во время отключения бота
-# ignor: bool = False
+# проверочный код
+verification = 'B54U83'
 
 
 # проверить все ли на месте

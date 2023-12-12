@@ -49,6 +49,8 @@ class FSM(StatesGroup):
 
 # выбор языка. на входе языковой код (по дефолту en), на выходе словарь с лексикой этого языка
 def load_lexicon(language: str = 'en') -> dict:
+    if language not in langs:
+        language = 'en'
     try:
         lexicon_module = __import__(f'lexic.{language}', fromlist=[''])
         return lexicon_module.lexicon
@@ -199,7 +201,7 @@ async def get_tsv(TKN, bot, msg, worker) -> str:
     with open(path, 'w', encoding='UTF-8') as file:
         # tasks_dict = lex['tasks']
         #  создание словаря {код задания: название}
-        with open(tasks_tsv, 'r', encoding='UTF-8') as f:
+        with open(tasks_tsv.format('ru'), 'r', encoding='UTF-8') as f:
             tasks_dict = {i.split('\t')[0]: i.split('\t')[3] for i in f.readlines()}
         print(tasks_dict)
 
@@ -212,10 +214,10 @@ async def get_tsv(TKN, bot, msg, worker) -> str:
             # print(tasks_dict[file_num])
             try:
                 row = (file_num, tasks_dict[file_num], urls[file_num])
-            except IndexError:
+                print('\t'.join(map(str, row)), file=file)
+                # print(row)
+            except IndexError or KeyError:
                 break
-            print('\t'.join(map(str, row)), file=file)
-            # print(row)
     # вернуть путь к тсв
     return path
 

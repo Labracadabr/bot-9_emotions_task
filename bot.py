@@ -21,8 +21,8 @@ async def main():
 
     # Регистрируем роутеры в диспетчере
     dp.include_router(handler_pd.router)
-    dp.include_router(handler_user.router)
     dp.include_router(handler_small_commands.router)
+    dp.include_router(handler_user.router)
     dp.include_router(handler_admin.router)
     # import test
     # dp.include_router(test.router)

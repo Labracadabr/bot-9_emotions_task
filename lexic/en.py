@@ -42,7 +42,7 @@ lexicon: dict[str:str] = {
               '\n- Left corner (~45 degrees)'
               '\n- Right corner'
 
-              '\n\nYou can click /next to see all available commands'
+              '\n\nYou can click /help to see all available commands'
               '\nBefore continuing, please read our <b>privacy policy</b> and click the ✅ button.',
      'lang_ok': 'Language set to {}\nTo see a list of commands, press /help',
      'pol_agree': 'I have read and agree to the policy',
@@ -64,7 +64,8 @@ lexicon: dict[str:str] = {
                   '\n<u>7. Prohibited on the head:</u> headphones, masks, dark glasses, headdresses (except religious ones), drawings on the face, strange costumes.'
                   '\n<u>8. Reflections:</u> There should be no mirrors or other objects in the background or near you where you will be reflected.',
 
-     'full_hd': 'You need to send the file <b>uncompressed</b>. If you do not know how, then'
+    'example': 'Example of all 15 pictures',
+    'full_hd': 'You need to send the file <b>uncompressed</b>. If you do not know how, then'
                 ' <a href="https://www.youtube.com/embed/qOOMNJ0gIss">look at the example</a> (9 sec).',
      'instruct2': 'You can begin - press the /next command and the bot will show you the next task, then take a photo and send it to this chat.',
      'album': 'Send files one at a time, not in groups',

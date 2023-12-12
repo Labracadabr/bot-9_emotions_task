@@ -42,12 +42,12 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         data_inf = json.load(f)
 
     # язык
-    if user_id in data_inf:  # если это не первый старт - взять язык из памяти
-        language = await get_pers_info(user=user_id, key='lang')
-    else:  # если первый - использовать язык приложения
+    # если это не первый старт - взять язык из памяти
+    language = await get_pers_info(user=user_id, key='lang')
+    # если первый - использовать язык приложения
+    if not language:
         language = str(message.from_user.language_code).lower()
-        # сохранить значение
-        await set_pers_info(user=user_id, key='lang', val=language)
+        print(language)
     lexicon = load_lexicon(language)
 
     # если юзер без реферала и его раньше не было в БД: не проходит
@@ -72,6 +72,7 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
             info['tg_username'] = message.from_user.username
             info['tg_fullname'] = message.from_user.full_name
             info['lang_tg'] = message.from_user.language_code
+            info['lang'] = message.from_user.language_code
             print(info)
 
             # сохранить новые данные
@@ -164,14 +165,16 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     user = callback.from_user
     await log(logs, user.id, 'privacy_ok')
     language = await get_pers_info(user=str(user.id), key='lang')
+    print(language)
     lexicon = load_lexicon(language)
+    print(lexicon)
 
     # выдать инструкцию и примеры
     msg_to_pin = await bot.send_message(text=lexicon['instruct1'], chat_id=user.id, parse_mode='HTML')
     await bot.send_message(text=f"{lexicon['instruct2']}\n\n{lexicon['full_hd']}", chat_id=user.id, parse_mode='HTML',
                            disable_web_page_preview=True, reply_markup=keyboards.keyboard_user)
     url_exmpl = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
-    await bot.send_photo(chat_id=user.id, photo=URLInputFile(url_exmpl), caption='Пример всех 15 фото')
+    await bot.send_photo(chat_id=user.id, photo=URLInputFile(url_exmpl), caption=lexicon['example'])
     # закреп
     await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=user.id, disable_notification=True)
     await state.clear()
@@ -318,7 +321,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
 
         # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
         send_to = validator if validator else admins[0]
-        adm_lexicon = __import__('lexic.adm', fromlist=[''])
+        adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
         await bot.send_message(chat_id=send_to, text=f'{adm_lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
                                f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboards.keyboard_admin)
 

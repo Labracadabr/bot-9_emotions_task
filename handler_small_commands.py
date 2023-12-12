@@ -22,7 +22,8 @@ async def comm(msg: Message):
     await log(logs, user, msg.text)
 
     if user in admins + validators:
-        await msg.answer(lexicon['adm_help'].format(len(admins), len(validators)), parse_mode='HTML')
+        adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
+        await msg.answer(adm_lexicon['adm_help'].format(len(admins), len(validators)), parse_mode='HTML')
     else:
         await msg.answer(lexicon['help'])
 
@@ -54,13 +55,21 @@ async def lng(msg: CallbackQuery, bot: Bot):
 
 # команда /instruct
 @router.message(Command(commands=['instruct']))
-async def comm(msg: Message):
+async def comm(msg: Message, bot: Bot):
     user = str(msg.from_user.id)
     await log(logs, user, msg.text)
     language = await get_pers_info(user=user, key='lang')
     lexicon = load_lexicon(language)
     # текст
-    await msg.answer(lexicon['instruct1'], parse_mode='HTML')
+    # выдать инструкцию и примеры
+    msg_to_pin = await bot.send_message(text=lexicon['instruct1'], chat_id=user, parse_mode='HTML')
+    await bot.send_message(text=f"{lexicon['instruct2']}\n\n{lexicon['full_hd']}", chat_id=user, parse_mode='HTML',
+                           disable_web_page_preview=True, reply_markup=keyboards.keyboard_user)
+    url_exmpl = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
+    await bot.send_photo(chat_id=user, photo=URLInputFile(url_exmpl), caption=lexicon['example'])
+    # закреп
+    await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=user, disable_notification=True)
+
 
 
 # команда /status - показать юзеру статус его заданий

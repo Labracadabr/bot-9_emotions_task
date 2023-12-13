@@ -1,6 +1,5 @@
-from aiogram import Router, Bot, F
+from aiogram import Router, Bot, F, types
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject, or_f
-
 import template_pd
 from bot_logic import *
 from config import Config, load_config
@@ -17,7 +16,7 @@ router: Router = Router()
 config: Config = load_config()
 TKN: str = config.tg_bot.token
 storage: MemoryStorage = MemoryStorage()
-
+last_group_id = ''
 
 # # чекнуть не в бане ли юзер
 # @router.message(Access(book['ban']))
@@ -165,9 +164,7 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     user = callback.from_user
     await log(logs, user.id, 'privacy_ok')
     language = await get_pers_info(user=str(user.id), key='lang')
-    print(language)
     lexicon = load_lexicon(language)
-    print(lexicon)
 
     # выдать инструкцию и примеры
     msg_to_pin = await bot.send_message(text=lexicon['instruct1'], chat_id=user.id, parse_mode='HTML')
@@ -192,10 +189,17 @@ async def privacy_missing(msg: Message):
 # юзер отправил альбом: не принимается
 @router.message(F.media_group_id)
 async def alb(msg: Message):
-    user = msg.from_user
-    language = await get_pers_info(user=str(user.id), key='lang')
+    # чтобы не отвечать на каждое фото из одного альбома
+    global last_group_id
+    if msg.media_group_id == last_group_id:
+        return
+    else:
+        last_group_id = msg.media_group_id
+
+    user = str(msg.from_user.id)
+    language = await get_pers_info(user=user, key='lang')
     lexicon = load_lexicon(language)
-    await log(logs, user.id, 'album')
+    await log(logs, user, 'album')
     await msg.reply(lexicon['album'])
 
 
@@ -237,7 +241,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
             height = msg.document.thumbnail.height
             if width >= height:
                 await log(logs, user, f'wrong orient')
-                print('wrong orient', f'width: {width}, height: {height}')
+                # print('wrong orient', f'width: {width}, height: {height}')
                 await msg.answer(text=lexicon['vert'])
                 return
     else:
@@ -311,19 +315,17 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
                                        f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}')
 
         # Отправить файлЫ на проверку одному валидатору если он есть, иначе - первому админу
+        send_to = validator if validator else admins[0]
+        adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
         for i in output:
             file_id, task_message = i
             if validator:
-                await bot.send_document(chat_id=validator, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
-            else:
-                await bot.send_document(chat_id=admins[0], document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
-        await log(logs, user, 'review files received')
+                await bot.send_document(chat_id=send_to, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
 
         # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
-        send_to = validator if validator else admins[0]
-        adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
         await bot.send_message(chat_id=send_to, text=f'{adm_lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
                                f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboards.keyboard_admin)
+        await log(logs, user, 'review files received')
 
 
 # юзер что-то пишет

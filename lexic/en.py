@@ -61,8 +61,9 @@ lexicon: dict[str:str] = {
                   '\n<u>4. Good lighting:</u> No glare, glare on the face or darkening. White or yellow light.'
                   '\n<u>5. Outsiders:</u> There should be no other people in the frame (neither living nor in pictures), not even their hair or hands.'
                   '\n<u>6. Filming:</u> Any filters/effects/masks are prohibited.'
-                  '\n<u>7. Prohibited on the head:</u> headphones, masks, dark glasses, headdresses (except religious ones), drawings on the face, strange costumes.'
-                  '\n<u>8. Reflections:</u> There should be no mirrors or other objects in the background or near you where you will be reflected.',
+                  '\n<u>7. Prohibited on the head:</u> headphones, masks, dark glasses, headdresses (except religious ones).'
+                  '\n<u>8. Reflections:</u> There should be no mirrors or other objects in the background or near you where you will be reflected.'
+                  '\n<u>9. Background:</u> Simple plain background with not much clutter, just plain wall would be perfect.',
 
     'example': 'Example of all 15 pictures',
     'full_hd': 'You need to send the file <b>uncompressed</b>. If you do not know how, then'
@@ -76,6 +77,8 @@ lexicon: dict[str:str] = {
      'reject': 'We have checked your work. Unfortunately, some of the files did not pass the exam. Check out our '
                'comments and press /next to get the task.'
                '\nNext in each line is the number of the incorrectly completed task and a comment for it:',
+     'reject_all': 'We have checked your work. Unfortunately, all files did not pass the exam. '
+                   'Please read our comment below and press /next to get a task.',
      'all_approved': 'Success! Your set has successfully passed the first quality check.\n'
                      'Within 1-2 days we will check your work more carefully. New corrections may need to be made. '
                      'If everything is done correctly, the person from whom you received the invitation will contact you. Your ID: ',

@@ -10,7 +10,6 @@ from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 
 
-
 # Инициализация
 router: Router = Router()
 config: Config = load_config()
@@ -93,25 +92,34 @@ async def reply_to_msg(msg: Message, bot: Bot):
         return
 
     # если админ написал причину отказа❌
-    elif adm_lexicon["adm_review"] in orig.text or orig.text.startswith('reject id'):
+    elif adm_lexicon["adm_review"] in orig.text or orig.text.lower().startswith('reject id'):
         print('adm reject')
-        # записать номера отклоненных файлов
-        rejected_files = []
-        for line in admin_response.split('\n'):
-            print(line)
-            file_num = line.split()[0]
-            # убедиться, что каждая строка начинается с номера задания
-            if not file_num.isnumeric():
-                await bot.send_message(orig.chat.id, adm_lexicon['wrong_rej_form'])
-                await log(logs, worker, 'reject_fail')
-                return
-            if int(file_num) > total_tasks:
-                await bot.send_message(orig.chat.id, text=f'Нет задания под номером {file_num}\nНапиши причину отказа снова.')
-                await log(logs, worker, 'reject_fail')
-                return
 
-            rejected_files.append(line.split()[0])
-            txt_for_worker += line + '\n'
+        # если отказ начинается на * - отклонить всё
+        reject_all = True if admin_response.startswith('*') else False
+        if reject_all:
+            rejected_files = [str(i) for i in range(1, total_tasks+1)]
+            txt_for_worker = admin_response.replace('*', '')
+
+        # иначе - записать номера отклоненных файлов
+        else:
+            rejected_files = []
+            txt_for_worker = '\n\n'
+            for line in admin_response.split('\n'):
+                print(line)
+                file_num = line.split()[0]
+                # убедиться, что каждая строка начинается с номера задания
+                if not file_num.isnumeric():
+                    await bot.send_message(orig.chat.id, adm_lexicon['wrong_rej_form'])
+                    await log(logs, worker, 'reject_fail')
+                    return
+                if int(file_num) > total_tasks:
+                    await bot.send_message(orig.chat.id, text=f'Нет задания под номером {file_num}\nНапиши причину отказа снова.')
+                    await log(logs, worker, 'reject_fail')
+                    return
+
+                rejected_files.append(line.split()[0])  # внести номер задания, напр 02
+                txt_for_worker += line + '\n'
 
         # прочитать данные юзера из пд
         with open(baza_info, 'r', encoding='utf-8') as f:
@@ -148,7 +156,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
         # сообщить юзеру об отказе
         try:
-            await bot.send_message(chat_id=worker, text=user_lexicon['reject'], parse_mode='HTML')
+            reject_alert = user_lexicon['reject_all'] if reject_all else user_lexicon['reject']
+            await bot.send_message(chat_id=worker, text=reject_alert, parse_mode='HTML')
             msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
             await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
             await log(logs, worker, 'rejected_delivered')
@@ -168,7 +177,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
         count = 0
         for file in rejected_files:
             print('file', file, 'rejected')
-            tasks[f'file{file}'][0] = 'reject'
+            tasks[f'file{file.zfill(2)}'][0] = 'reject'
             count += 1
         await log(logs, worker, f'{count} rejected')
 

@@ -1,15 +1,15 @@
-file01	Task 01		⬅️😐	Without emotions *Camera on the right in profile
-file02	Task 02		↙️😐	Without emotions *Camera on the right at an angle of 45
-file03	Task 03		😐	Without emotion*Front
-file04	Task 04		😐↘️	Without emotions *Camera on the left at an angle of 45
-file05	Task 05		😐▶️	Without emotions *Camera left in profile
-file06	Task 06		⬅️😀	Smile (with or without teeth) *Camera on the right in profile
-file07	Task 07		↙️😀	Smile (with or without teeth) *Camera on the right at an angle of 45
-file08	Task 08		😀	Smile (with or without teeth)*Front
-file09	Task 09		😀↘️	Smile (with or without teeth) *Camera on the left at an angle of 45
-file10	Task 10		😀▶️	Smile (with or without teeth) *Camera left in profile
-file11	Task 11		⬅️😬	Show all teeth*Camera on the right in profile
-file12	Task 12		↙️😬	Show all teeth*Camera on the right at an angle of 45
-file13	Task 13		😬	Show all teeth*Front
-file14	Task 14		😬↘️	Show all teeth*Camera on the left at an angle of 45
-file15	Task 15		😬▶️	Show all teeth*Camera left in profile
+file01	Task 01	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/1.png	⬅️😐	Without emotions *Camera on the right in profile
+file02	Task 02	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/2.png	↙️😐	Without emotions *Camera on the right at an angle of 45
+file03	Task 03	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/3.png	😐	Without emotion*Front
+file04	Task 04	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/4.png	😐↘️	Without emotions *Camera on the left at an angle of 45
+file05	Task 05	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/5.png	😐▶️	Without emotions *Camera left in profile
+file06	Task 06	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/6.png	⬅️😀	Smile (with or without teeth) *Camera on the right in profile
+file07	Task 07	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/7.png	↙️😀	Smile (with or without teeth) *Camera on the right at an angle of 45
+file08	Task 08	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/8.png	😀	Smile (with or without teeth)*Front
+file09	Task 09	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/9.png	😀↘️	Smile (with or without teeth) *Camera on the left at an angle of 45
+file10	Task 10	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/10.png	😀▶️	Smile (with or without teeth) *Camera left in profile
+file11	Task 11	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/11.png	⬅️😬	Show all teeth*Camera on the right in profile
+file12	Task 12	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/12.png	↙️😬	Show all teeth*Camera on the right at an angle of 45
+file13	Task 13	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/13.png	😬	Show all teeth*Front
+file14	Task 14	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/14.png	😬↘️	Show all teeth*Camera on the left at an angle of 45
+file15	Task 15	https://trainingdata-data-collection.s3.amazonaws.com/dima/Innodata/exmpl/15.png	😬▶️	Show all teeth*Camera left in profile

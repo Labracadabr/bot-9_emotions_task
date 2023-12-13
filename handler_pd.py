@@ -1,6 +1,8 @@
 import json
 from aiogram import Router, Bot, F
 from aiogram.filters import Command, StateFilter
+
+import template_pd
 from bot_logic import log, FSM, get_pers_info, load_lexicon
 from config import Config, load_config
 from settings import baza_info, logs, verification
@@ -34,7 +36,7 @@ async def personal_command(msg: Message, state: FSMContext):
     except KeyError:
         # создать запись ПД
         await log(logs, user, 'pd created')
-        info = lexicon['user_pd']
+        info = template_pd.user_pd
         info['first_start'] = msg.date.strftime("%d/%m/%Y %H:%M")
         info['tg_username'] = msg.from_user.username
         info['tg_fullname'] = msg.from_user.full_name

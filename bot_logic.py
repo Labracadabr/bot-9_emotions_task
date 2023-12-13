@@ -76,7 +76,7 @@ async def log(file, key, item):
 
     # дублировать логи в консоль
     log_text = str(key)+' '+str(item)
-    print(log_text)
+    print(t.split()[-1], log_text)
     # дублировать логи в тг-канал
     if item != '/next':
         try:
@@ -263,9 +263,14 @@ async def send_files(worker, status) -> list | None:
         data = json.load(f)
     tasks = data[worker]
 
+    # язык будет тот же, что у исполнителя
+    language = await get_pers_info(user=worker, key='lang')
+    if language not in langs:
+        language = 'en'
+
     # чтение инстр заданий для подписи к файлам
     all_tasks_text = []
-    with open(tasks_tsv.format('ru'), 'r', encoding='utf-8') as f:
+    with open(tasks_tsv.format(language), 'r', encoding='utf-8') as f:
         next_task = []
         for line in f.readlines():
             all_tasks_text.append(line.split('\t'))

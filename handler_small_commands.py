@@ -71,7 +71,6 @@ async def comm(msg: Message, bot: Bot):
     await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=user, disable_notification=True)
 
 
-
 # команда /status - показать юзеру статус его заданий
 @router.message(Command(commands=['status']))
 async def process_status_command(msg: Message, bot: Bot):
@@ -90,6 +89,8 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     user = str(message.from_user.id)
     await log(logs, user, '/next')
     language = await get_pers_info(user=user, key='lang')
+    if language not in langs:
+        language = 'en'
     lexicon = load_lexicon(language)
     # Найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
     file_num = find_next_task(user)

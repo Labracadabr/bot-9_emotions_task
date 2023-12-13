@@ -310,8 +310,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         await msg.reply(lexicon['all_sent'])
         await log(logs, user, f'SENT_ALL_FILES: {len(output)}')
         for i in admins + [validator]:
-            if i:
-                await bot.send_message(chat_id=i, text=f'Юзер отправил {len(output)} файлов - id{user}'
+            await bot.send_message(chat_id=i, text=f'Юзер отправил {len(output)} файлов - id{user}'
                                        f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}')
 
         # Отправить файлЫ на проверку одному валидатору если он есть, иначе - первому админу
@@ -319,8 +318,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
         for i in output:
             file_id, task_message = i
-            if validator:
-                await bot.send_document(chat_id=send_to, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
+            await bot.send_document(chat_id=send_to, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
 
         # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
         await bot.send_message(chat_id=send_to, text=f'{adm_lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'

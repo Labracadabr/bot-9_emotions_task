@@ -1,21 +1,19 @@
 import json
 from aiogram import Router, Bot, F
 from aiogram.filters import Command, StateFilter
-
 import template_pd
 from bot_logic import log, FSM, get_pers_info, load_lexicon
-from config import Config, load_config
+# from config import Config, load_config
 from settings import baza_info, logs, verification
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import Message, CallbackQuery
 from keyboards import keyboard_race
+from config import config
 
-
-# Инициализация
+# Инициализация бота
+TKN = config.BOT_TOKEN
 router: Router = Router()
-config: Config = load_config()
-TKN: str = config.tg_bot.token
 storage: MemoryStorage = MemoryStorage()
 
 

@@ -3,17 +3,15 @@ from settings import admins, baza_task, baza_info, logs, validators, check_files
 from bot_logic import *
 import json
 import os
-from config import Config, load_config
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
+from config import config
 
-
-# Инициализация
+# Инициализация бота
+TKN = config.BOT_TOKEN
 router: Router = Router()
-config: Config = load_config()
-TKN: str = config.tg_bot.token
 
 
 # # Забанить юзера по telegram id. Пример сообщения: ban id123456789

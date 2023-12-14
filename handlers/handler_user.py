@@ -2,19 +2,18 @@ from aiogram import Router, Bot, F, types
 from aiogram.filters import Command, CommandStart, StateFilter, CommandObject, or_f
 import template_pd
 from bot_logic import *
-from config import Config, load_config
+# from config import Config, load_config
 import keyboards
 from settings import *
 import template_pd
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import CallbackQuery, Message, URLInputFile
+from config import config
 
-
-# Инициализация всяких ботских штук
+# Инициализация бота
+TKN = config.BOT_TOKEN
 router: Router = Router()
-config: Config = load_config()
-TKN: str = config.tg_bot.token
 storage: MemoryStorage = MemoryStorage()
 last_group_id = ''
 
@@ -171,8 +170,14 @@ async def privacy_ok(callback: CallbackQuery, bot: Bot, state: FSMContext):
     msg_to_pin = await bot.send_message(text=lexicon['instruct1'], chat_id=user.id, parse_mode='HTML')
     await bot.send_message(text=f"{lexicon['instruct2']}\n\n{lexicon['full_hd']}", chat_id=user.id, parse_mode='HTML',
                            disable_web_page_preview=True, reply_markup=keyboards.keyboard_user)
-    url_exmpl = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
-    await bot.send_photo(chat_id=user.id, photo=URLInputFile(url_exmpl), caption=lexicon['example'])
+    # хороший пример
+    url = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
+    await bot.send_photo(chat_id=user.id, photo=URLInputFile(url), caption=lexicon['example'])
+
+    # плохой пример
+    # url = 'https://s3.amazonaws.com/trainingdata-data-collection/dima/Innodata/inod_exmpl.jpg'
+    # await bot.send_photo(chat_id=user.id, photo=URLInputFile(url_exmpl), caption=lexicon['example'])
+
     # закреп
     await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=user.id, disable_notification=True)
     await state.clear()

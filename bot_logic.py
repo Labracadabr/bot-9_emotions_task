@@ -6,7 +6,7 @@ from aiogram.filters.state import State, StatesGroup
 import os
 from settings import *
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import Message, CallbackQuery, FSInputFile
+from aiogram.types import Message, CallbackQuery, FSInputFile, User
 from aiogram import Bot
 from config import Config, load_config
 from datetime import datetime
@@ -336,3 +336,10 @@ async def set_pers_info(user: str, key: str, val):
         json.dump(data, f, indent=2, ensure_ascii=False)
     print(user, f'{key}: {old_val} => {val}')
     # await log(logs, user, f'{key}: {old_val} => {val}')
+
+
+# написать имя и ссылку на юзера, даже если он без username
+def contact_user(user: User) -> str:
+    tg_url = f'<a href="tg://user?id={user.id}">{user.full_name}</a>'
+    text = f'{tg_url} id{user.id} @{user.username}'
+    return text

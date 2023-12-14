@@ -96,10 +96,11 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
         # бот переходит в состояние ожидания согласия с политикой
         await state.set_state(FSM.policy)
         # сообщить админу, кто стартанул бота
+        alert = f'➕ user {len(data_tsk)} {contact_user(user)} from: {referral}'
         for i in admins:
             await bot.send_message(
-                text=f'➕ user {len(data_tsk)} id{user.id} {user.full_name} @{user.username} from: {referral}',
-                chat_id=i, disable_notification=True)
+                text=alert, chat_id=i, disable_notification=True, parse_mode='HTML')
+                # text=f'➕ user {len(data_tsk)} id{user.id} {user.full_name} @{user.username} from: {referral}', chat_id=i, disable_notification=True)
 
         # логи
         await log(logs, 'logs',
@@ -246,7 +247,8 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
                 return
     else:
         # болванка для тестирования
-        file_id = 'BQACAgUAAxkBAAIKk2V4SQEHNsyv6Y0g4vDic0vjMUckAAKSDAACVu3AV-SnwgzXyLaBMwQ'
+        # file_id = 'BQACAgUAAxkBAAIKk2V4SQEHNsyv6Y0g4vDic0vjMUckAAKSDAACVu3AV-SnwgzXyLaBMwQ'
+        file_id = 'test'
 
     # чтение БД
     with open(baza_task, 'r', encoding='utf-8') as f:
@@ -307,18 +309,23 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         output = await send_files(user, 'review')
 
         # уведомить юзера, админов, внести в логи и в консоль
+        alert = f'Юзер отправил {len(output)} файлов - {contact_user(msg.from_user)} ref: {ref}'
         await msg.reply(lexicon['all_sent'])
         await log(logs, user, f'SENT_ALL_FILES: {len(output)}')
         for i in admins + [validator]:
-            await bot.send_message(chat_id=i, text=f'Юзер отправил {len(output)} файлов - id{user}'
-                                       f'\n{msg.from_user.full_name} @{msg.from_user.username} ref: {ref}')
+            if i:
+                print('to', i)
+                await bot.send_message(chat_id=i, text=alert, parse_mode='HTML')
 
         # Отправить файлЫ на проверку одному валидатору если он есть, иначе - первому админу
         send_to = validator if validator else admins[0]
         adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
         for i in output:
             file_id, task_message = i
-            await bot.send_document(chat_id=send_to, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
+            if file_id == 'test':
+                await bot.send_message(chat_id=send_to, text=file_id+'\n'+task_message, parse_mode='HTML', disable_notification=True)
+            else:
+                await bot.send_document(chat_id=send_to, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
 
         # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
         await bot.send_message(chat_id=send_to, text=f'{adm_lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
@@ -334,5 +341,4 @@ async def usr_txt2(msg: Message, bot: Bot):
 
     # показать админам
     for i in admins:
-        await bot.send_message(chat_id=i, text=f'{adm_lexicon["msg_to_admin"]} @{msg.from_user.username} {msg.from_user.full_name}'
-                                               f' id{msg.from_user.id}: \n\n{msg.text}')
+        await bot.send_message(chat_id=i, text=f'{adm_lexicon["msg_to_admin"]} {contact_user(msg.from_user)}: \n\n{msg.text}', parse_mode='HTML')

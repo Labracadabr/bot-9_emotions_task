@@ -8,14 +8,13 @@ from settings import *
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import Message, CallbackQuery, FSInputFile, User
 from aiogram import Bot
-from config import Config, load_config
+# from config import Config, load_config
 from datetime import datetime
+from config import config
 
-
-# Инициализация
-config: Config = load_config()
-TKN: str = config.tg_bot.token
-bot_func: Bot = Bot(TKN)
+# Инициализация бота
+TKN = config.BOT_TOKEN
+bot_func: Bot = Bot(token=TKN)
 
 
 # Фильтр, проверяющий доступ юзера

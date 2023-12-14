@@ -1,18 +1,15 @@
 from dataclasses import dataclass
 from environs import Env
 
-
-@dataclass
-class TgBot:
-    token: str     # Токен бота
-
-
 @dataclass
 class Config:
-    tg_bot: TgBot
+    BOT_TOKEN: str = None   # телеграм бот
+    # TOLOKA: str = None      # толока
 
 
-def load_config(path=None) -> Config:
-    env = Env()
-    env.read_env(path)
-    return Config(tg_bot=TgBot(token=env('BOT_TOKEN')))
+# загрузить конфиг из переменных окружения
+env = Env()
+env.read_env()
+config = Config(BOT_TOKEN=env('BOT_TOKEN'),
+                # TOLOKA=env('TOLOKA'),
+                )

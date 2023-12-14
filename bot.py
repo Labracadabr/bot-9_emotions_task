@@ -1,22 +1,14 @@
 import asyncio
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram import Bot, Dispatcher
-from config import Config, load_config
-import handler_admin
-import handler_user
-import handler_pd
-import handler_small_commands
-# from concurrent.futures import ThreadPoolExecutor
-# import time
-
+# from config import Config, load_config
+from handlers import handler_admin, handler_small_commands, handler_user, handler_pd
+from config import config
 
 async def main():
-    # asyncio.create_task(regular_task())
-
     # Инициализация бота
-    config: Config = load_config()
     storage: MemoryStorage = MemoryStorage()
-    bot: Bot = Bot(token=config.tg_bot.token)
+    bot: Bot = Bot(token=config.BOT_TOKEN)
     dp: Dispatcher = Dispatcher(storage=storage)
 
     # Регистрируем роутеры в диспетчере

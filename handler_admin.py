@@ -333,7 +333,7 @@ async def adm_msg(msg: Message, bot: Bot):
             data_inf = json.load(f)
         user_data = data_inf[worker]
         # создать json
-        path = f'pd_{worker}.json'
+        path = f'person_{worker}.json'
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(user_data, f, indent=2, ensure_ascii=False)
         # отправить и удалить

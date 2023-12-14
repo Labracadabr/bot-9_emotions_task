@@ -216,7 +216,7 @@ async def get_tsv(TKN, bot, msg, worker) -> str:
                 row = (file_num, tasks_dict[file_num], urls[file_num])
                 print('\t'.join(map(str, row)), file=file)
                 # print(row)
-            except IndexError or KeyError:
+            except (IndexError, KeyError):
                 break
     # вернуть путь к тсв
     return path
@@ -292,7 +292,6 @@ async def send_files(worker, status) -> list | None:
 
     return output
 
-
 # получить значение
 async def get_pers_info(user: str, key: str):
     with open(baza_info, 'r', encoding='utf-8') as f:
@@ -303,6 +302,20 @@ async def get_pers_info(user: str, key: str):
         return None
     value = user_data.get(key)
     return value
+# async def get_pers_info(user: str, *keys: str):
+#     with open(baza_info, 'r', encoding='utf-8') as f:
+#         data: dict = json.load(f)
+#     user_data: dict = data.get(user)
+#     if not user_data:
+#         await log(logs, user, f'user not found')
+#         return None
+#     # значения для каждого переданного ключа
+#     values = [user_data.get(key) for key in keys]
+#     # если один ключ, вернуть его значение напрямую
+#     if len(keys) == 1:
+#         return values[0]
+#     # если несколько ключей, вернуть словарь
+#     return dict(zip(keys, values))
 
 
 # задать значение

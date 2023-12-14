@@ -95,26 +95,26 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
     # Найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
     file_num = find_next_task(user)
 
-    # если нашлись
-    if file_num:
-        with open(tasks_tsv.format(language), 'r', encoding='utf-8') as f:
-            next_task = []
-            for line in f.readlines():
-                splited_line = line.split('\t')
-                if splited_line[0] == file_num:
-                    next_task = splited_line
-                    break
-
-        print(next_task)
-        # текст задания
-        task_message = get_task_message(next_task)
-        # отправка задания юзеру
-        await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
-        await state.set_state(FSM.ready_for_next)
-
     # если задания кончились или не начались
     if not file_num:
         await bot.send_message(chat_id=user, text=lexicon['no_more'], parse_mode='HTML')
+        return
+
+    # если нашлись
+    with open(tasks_tsv.format(language), 'r', encoding='utf-8') as f:
+        next_task = []
+        for line in f.readlines():
+            splited_line = line.split('\t')
+            if splited_line[0] == file_num:
+                next_task = splited_line
+                break
+
+    print(next_task)
+    # текст задания
+    task_message = get_task_message(next_task)
+    # отправка задания юзеру
+    await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
+    await state.set_state(FSM.ready_for_next)
 
 
 # команда /cancel - отменить отправленный файл

@@ -8,6 +8,7 @@ from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
 from aiogram.exceptions import TelegramForbiddenError, TelegramBadRequest
 from config import config
+from toloker import *
 
 # Инициализация бота
 TKN = config.BOT_TOKEN
@@ -39,17 +40,32 @@ async def admin_ok(callback: CallbackQuery, bot: Bot):
     # принять все файлы
     await accept_user(worker)
     await log(logs, worker, 'admin_accept_button')
+    adm_alert = f'Принято {worker}'
 
     # убрать кнопки админа
     await bot.edit_message_text(f'{msg.text}\n✅ Принято', msg.chat.id, msg.message_id, reply_markup=None)
-    # Дать юзеру аппрув
+    # Дать юзеру апрув
     await bot.send_message(chat_id=worker, text=lexicon['all_approved']+f'id{worker}')
+
+    # принять на толоке
+    ref = await get_pers_info(user=worker, key='referral')
+    if ref == 'toloka':
+        found_toloker = False
+        assignment = tlk_ass_by_tg_id(telegram_id=worker)
+        if assignment:
+            found_toloker = toloker_accept(ass_id=assignment)
+        if found_toloker:
+            adm_alert += '\nТолокер найден ✅'
+        else:
+            adm_alert += '\nТолокер не найден'
+
     # сохранить ссылки
     path = await get_tsv(TKN, bot, msg, worker)
-    # отправить tsv админу
+    # отправить отчет и tsv админу
     for i in admins:
-        await bot.send_document(chat_id=i, caption='Принято '+worker, document=FSInputFile(path=path))
-    os.remove(path)
+        await bot.send_document(chat_id=i, caption=adm_alert, document=FSInputFile(path=path))
+
+    os.remove(path)  # удалить тсв после отправки
 
 
 # admin нажал ❌

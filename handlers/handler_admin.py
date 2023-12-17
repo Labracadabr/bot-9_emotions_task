@@ -1,6 +1,7 @@
 from aiogram import Router, Bot, F
 from settings import admins, baza_task, baza_info, logs, validators, check_files
 from bot_logic import *
+import keyboards
 import json
 import os
 from aiogram.exceptions import TelegramBadRequest
@@ -91,16 +92,16 @@ async def reply_to_msg(msg: Message, bot: Bot):
     # сообщение, на которое отвечает админ
     orig = msg.reply_to_message
 
-    # worker = вытащить id из текста сообщения
-    worker = id_from_text(orig.text)
-    language = await get_pers_info(user=worker, key='lang')
+    # user = вытащить id из текста сообщения
+    user = id_from_text(orig.text)
+    language = await get_pers_info(user=user, key='lang')
     user_lexicon = load_lexicon(language)
     adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
 
     txt_for_worker = '\n\n'
 
     # если админ тупит
-    if not worker:
+    if not user:
         await bot.send_message(orig.chat.id, 'На это сообщение не надо отвечать')
         await log(logs, admin, 'response_fail')
         return
@@ -108,10 +109,35 @@ async def reply_to_msg(msg: Message, bot: Bot):
     # если админ написал причину отказа❌
     elif adm_lexicon["adm_review"] in orig.text or orig.text.lower().startswith('reject id'):
         print('adm reject')
-
         # если отказ начинается на * - отклонить всё
         reject_all = True if admin_response.startswith('*') else False
-        if reject_all:
+        block = False
+        adm_alert = ''
+
+        # если отказ начинается на ! - отклонить на толоке и без права переделать в боте
+        if admin_response.startswith('!'):
+            block = True
+            rejected_files = []
+            ref = await get_pers_info(user=user, key='referral')
+            # adm_alert = ''
+            if ref == 'toloka':
+                txt_for_worker += admin_response.replace('!', '')
+                found_toloker = False
+                assignment = tlk_ass_by_tg_id(telegram_id=user)
+                if assignment:
+                    found_toloker = toloker_reject(ass_id=assignment, reason=admin_response.replace('!', ''))
+                if found_toloker:
+                    adm_alert = '\nТолокер найден ❎'
+                else:
+                    adm_alert = '\nТолокер не найден'
+                await log(logs, user, 'toloker reject')
+
+            else:
+                await bot.send_message(orig.chat.id, 'Ошибка, юзер не из Толоки')
+                await log(logs, user, 'reject_fail')
+                return
+
+        elif reject_all:
             rejected_files = [str(i) for i in range(1, total_tasks+1)]
             txt_for_worker = admin_response.replace('*', '')
 
@@ -125,11 +151,11 @@ async def reply_to_msg(msg: Message, bot: Bot):
                 # убедиться, что каждая строка начинается с номера задания
                 if not file_num.isnumeric():
                     await bot.send_message(orig.chat.id, adm_lexicon['wrong_rej_form'])
-                    await log(logs, worker, 'reject_fail')
+                    await log(logs, user, 'reject_fail')
                     return
                 if int(file_num) > total_tasks:
                     await bot.send_message(orig.chat.id, text=f'Нет задания под номером {file_num}\nНапиши причину отказа снова.')
-                    await log(logs, worker, 'reject_fail')
+                    await log(logs, user, 'reject_fail')
                     return
 
                 rejected_files.append(line.split()[0])  # внести номер задания, напр 02
@@ -139,16 +165,16 @@ async def reply_to_msg(msg: Message, bot: Bot):
         with open(baza_info, 'r', encoding='utf-8') as f:
             data_inf = json.load(f)
 
-        if worker in data_inf:
-            # if isinstance(data_inf[worker], list):  # из старой версии
-            #     data_inf[worker] = data_inf[worker][0]
-            ref = data_inf[worker].get('referral', None)
-            username = data_inf[worker].get('tg_username', None)
-            fullname = data_inf[worker].get('tg_fullname', None)
+        if user in data_inf:
+            # if isinstance(data_inf[user], list):  # из старой версии
+            #     data_inf[user] = data_inf[user][0]
+            ref = data_inf[user].get('referral', None)
+            username = data_inf[user].get('tg_username', None)
+            fullname = data_inf[user].get('tg_fullname', None)
         else:
             ref = username = fullname = '?'
 
-        rej_info_text = f'❌ Отклонено {len(rejected_files)} заданий.\nid{worker} {fullname} @{username} ref: {ref}\nПричина:\n{admin_response}'
+        rej_info_text = f'❌ Отклонено {len(rejected_files)} заданий.\nid{user} {fullname} @{username} ref: {ref}\nПричина:\n{admin_response}'
 
         # если слишком длинный текст
         if len(rej_info_text) > 4096:
@@ -156,7 +182,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
             await msg.answer(
                 text=f'Сообщение выйдет длиной в {dlina} символов. Максимальный лимит - 4096. Сократи на {dlina - 4096} и отправь заново')
             print('reject_too_long')
-            await log(logs, worker, 'reject_too_long')
+            await log(logs, user, 'reject_too_long')
             return
 
         # обновить сообщение у админа и дописать причину отказа
@@ -166,7 +192,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
         # продублировать всем админам
         for i in admins:
-            await bot.send_message(chat_id=i, text=rej_info_text)
+            await bot.send_message(chat_id=i, text=rej_info_text+adm_alert)
 
         # сообщить юзеру об отказе
         try:
@@ -176,16 +202,16 @@ async def reply_to_msg(msg: Message, bot: Bot):
             await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
             await log(logs, worker, 'rejected_delivered')
         except TelegramForbiddenError:
-            await msg.answer(text=f'Юзер id{worker} заблокировал бота')
+            await msg.answer(text=f'Юзер id{user} заблокировал бота')
         except TelegramBadRequest:
-            await msg.answer(text=f'Чат id{worker} не найден')
+            await msg.answer(text=f'Чат id{user} не найден')
         except Exception as e:
-            await msg.answer(text=f'Сообщение для id{worker} не доставлено\n{e}')
+            await msg.answer(text=f'Сообщение для id{user} не доставлено\n{e}')
 
         # чтение бд
         with open(baza_task, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        tasks = data[worker]
+        tasks = data[user]
 
         # проставить reject в отклоненных файлах
         count = 0
@@ -205,23 +231,22 @@ async def reply_to_msg(msg: Message, bot: Bot):
         await log(logs, worker, f'{count} accepted')
 
         # сохранить статусы заданий
-        data.setdefault(worker, tasks)
+        data[user] = tasks
+        print('сохранить статусы заданий')
+        print(data[user])
         with open(baza_task, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
-            print(worker, 'status saved')
-        await log(logs, worker, 'status saved, admin '+admin)
+            print(user, 'status saved')
+        await log(logs, user, 'status saved, admin '+admin)
 
         # плюсануть кол-во отказов
-        try:
-            data_inf[worker].setdefault('reject', data_inf[worker].get('reject') + 1)
-        except Exception as e:
-            await log(logs, worker, f'small_error: {e}')
+        data_inf[user].setdefault('reject', data_inf[user].get('reject') + 1)
 
     # если админ отвечает на сообщение юзера
-    elif worker:
-        await log(logs, worker, f'adm_reply: {admin_response}')
+    elif user:
+        await log(logs, user, f'adm_reply: {admin_response}')
         # отпр ответ юзеру и всем админам
-        for i in [worker]+admins:
+        for i in [user]+admins:
             await bot.send_message(chat_id=i, text=user_lexicon['msg_from_admin']+txt_for_worker+admin_response)
 
 
@@ -409,6 +434,34 @@ async def adm_msg(msg: Message, bot: Bot):
             await bot.send_document(chat_id=admin, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
         await log(logs, worker, f'{status} files received by adm')
         await log(logs, admin, f'{status} files received from {worker}')
+
+    # отправить непроверенные файлы первого попавшегося юзера
+    elif txt.lower() == 'work':
+        # чтение БД
+        with open(baza_task, 'r', encoding='utf-8') as f:
+            users = json.load(f)
+        for user in users:
+            x = await get_status(user)
+            print(x)
+            non, rev, rej, acc = x['non'], x['rev'], x['rej'], x['acc']
+            status = 'Ждет' if non == rej == 0 and rev > 0 else 'Выполняет'
+
+            # отправить непроверенные файлы
+            if status == 'Ждет':
+                status = 'review'
+                ref = await get_pers_info(user, 'referral')
+                username = await get_pers_info(user, 'tg_username')
+                output = await send_files(user, status)
+                await msg.answer(text=f'Отправляю файлы юзера id{user} в статусе {status}')
+                for i in output:
+                    file_id, task_message = i
+                    await bot.send_document(chat_id=admin, document=file_id, caption=task_message, parse_mode='HTML',
+                                            disable_notification=True)
+                # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
+                await bot.send_message(chat_id=admin, text=f'{adm_lexicon["adm_review"]} id{user}?\n@{username} ref: {ref}',
+                                       reply_markup=keyboards.keyboard_admin)
+                await log(logs, user, f'{status} files received by adm')
+                return
 
     # создать два задания для отладки
     elif txt.lower() == 'adm start':

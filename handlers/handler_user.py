@@ -135,27 +135,26 @@ async def next_cmnd(message: Message, bot: Bot, state: FSMContext):
 
     # Найти первое доступное задание, т.е. без статуса accept или review, и отправить юзеру
     file_num = find_next_task(user)
-
-    # если нашлись
-    if file_num:
-        with open(tasks_tsv.format(language), 'r', encoding='utf-8') as f:
-            next_task = []
-            for line in f.readlines():
-                splited_line = line.split('\t')
-                if splited_line[0] == file_num:
-                    next_task = splited_line
-                    break
-
-        print(next_task)
-        # текст задания
-        task_message = get_task_message(next_task)
-        # отправка задания юзеру
-        await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
-        await state.set_state(FSM.ready_for_next)
-
     # если задания кончились или не начались
     if not file_num:
         await bot.send_message(chat_id=user, text=lexicon['no_more'], parse_mode='HTML')
+        return
+
+    # если нашлись
+    with open(tasks_tsv.format(language), 'r', encoding='utf-8') as f:
+        next_task = []
+        for line in f.readlines():
+            split_line = line.split('\t')
+            if split_line[0] == file_num:
+                next_task = split_line
+                break
+
+    print(next_task)
+    # текст задания
+    task_message = get_task_message(next_task)
+    # отправка задания юзеру
+    m = await bot.send_message(chat_id=user, text=task_message, parse_mode='HTML')
+    await state.set_state(FSM.ready_for_next)
 
 
 # юзер согласен с политикой ✅
@@ -314,7 +313,7 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
         output = await send_files(user, 'review')
 
         # уведомить юзера, админов, внести в логи и в консоль
-        alert = f'Юзер отправил {len(output)} файлов - {contact_user(msg.from_user)} ref: {ref}'
+        alert = f'🆕 Юзер отправил {len(output)} файлов - {contact_user(msg.from_user)} ref: {ref}'
         await msg.reply(lexicon['all_sent'])
         await log(logs, user, f'SENT_ALL_FILES: {len(output)}')
         for i in admins + [validator]:
@@ -322,20 +321,20 @@ async def file_ok(msg: Message, bot: Bot, state: FSMContext):
                 print('to', i)
                 await bot.send_message(chat_id=i, text=alert, parse_mode='HTML')
 
-        # Отправить файлЫ на проверку одному валидатору если он есть, иначе - первому админу
-        send_to = validator if validator else admins[0]
-        adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
-        for i in output:
-            file_id, task_message = i
-            if file_id == 'test':
-                await bot.send_message(chat_id=send_to, text=file_id+'\n'+task_message, parse_mode='HTML', disable_notification=True)
-            else:
-                await bot.send_document(chat_id=send_to, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
-
-        # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
-        await bot.send_message(chat_id=send_to, text=f'{adm_lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
-                               f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboards.keyboard_admin)
-        await log(logs, user, 'review files received')
+        # # Отправить файлЫ на проверку одному валидатору если он есть, иначе - первому админу
+        # send_to = validator if validator else admins[0]
+        # adm_lexicon = __import__('lexic.adm', fromlist=['']).lexicon
+        # for i in output:
+        #     file_id, task_message = i
+        #     if file_id == 'test':
+        #         await bot.send_message(chat_id=send_to, text=file_id+'\n'+task_message, parse_mode='HTML', disable_notification=True)
+        #     else:
+        #         await bot.send_document(chat_id=send_to, document=file_id, caption=task_message, parse_mode='HTML', disable_notification=True)
+        #
+        # # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
+        # await bot.send_message(chat_id=send_to, text=f'{adm_lexicon["adm_review"]} id{user}?\n{msg.from_user.full_name}'
+        #                        f' @{msg.from_user.username} ref: {ref}', reply_markup=keyboards.keyboard_admin)
+        # await log(logs, user, 'review files received')
 
 
 # юзер что-то пишет

@@ -1,6 +1,5 @@
 import json
 from pprint import pprint
-
 from aiogram.filters import BaseFilter
 from aiogram.filters.state import State, StatesGroup
 import os
@@ -103,6 +102,9 @@ async def get_status(user_id) -> dict:
                 acc += 1
     except KeyError:
         non = total_tasks
+    except IndexError:
+        print(user_id, 'status IndexError')
+        pass
     output = {
         'non': non,
         'rev': rev,

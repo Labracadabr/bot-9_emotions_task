@@ -1,5 +1,6 @@
 from config import config
 import toloka.client as toloka
+from settings import admins
 
 # Инициализация Толоки
 TOLOKA = config.TOLOKA
@@ -28,14 +29,19 @@ def toloker_reject(ass_id: str, reason: str) -> bool:
 
 
 def tlk_ass_by_tg_id(telegram_id: str) -> str:
-    assignments = toloka_client.get_assignments(pool_id=POOL)
+    if telegram_id in admins:
+        return
+    assignments = toloka_client.get_assignments(pool_id=POOL, batch_size=1000)
     # перебор всех сабмитов
+    print('поиск толокера, tg id', telegram_id)
     for ass in assignments:
         status = ass.status.value
         if status in 'SUBMITTED':
             # смотрим, что толокер указал в качестве Telegram-id
             output_tg_id = ass.solutions[0].output_values.get('tg_id')
             if telegram_id in output_tg_id:
+                print('найден')
                 return ass.id
+    print('не найден')
 
 

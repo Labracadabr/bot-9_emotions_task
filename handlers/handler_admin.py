@@ -77,9 +77,12 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
 
     # обновить сообщение у админа и убрать кнопки
     await bot.edit_message_text(f'{msg.text}\n\n❌ Отклонено. Напиши причину отказа '
-                                f'для каждого файла <b>одним ответом на это сообщение</b>!\n\n'
-                                f'Укажи номер задания и через пробел причину. Следующее задание '
-                                f'- перенос строки. Например:\n\n<i>05 плохое качество\n51 обрезано лицо</i>',
+                                'для каждого файла <b>одним ответом на это сообщение</b>!\n'
+                                'Укажи номер задания и через пробел причину. Следующее задание '
+                                '- перенос строки. Например:\n<i>05 плохое качество\n15 обрезано лицо</i>\n'
+                                'Спец символы в начале отказа:'
+                                '\n* - отклонить всё общей причиной'
+                                '\n! - отклонить всё без права исправить + авто-отказ в Толоке',
                                 msg.chat.id, msg.message_id, parse_mode='HTML', reply_markup=None)
 
 
@@ -196,11 +199,14 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
         # сообщить юзеру об отказе
         try:
-            reject_alert = user_lexicon['reject_all'] if reject_all else user_lexicon['reject']
-            await bot.send_message(chat_id=worker, text=reject_alert, parse_mode='HTML')
-            msg_to_pin = await bot.send_message(chat_id=worker, text=txt_for_worker, parse_mode='HTML')
-            await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=worker, disable_notification=True)
-            await log(logs, worker, 'rejected_delivered')
+            if block:
+                reject_alert = user_lexicon['block']
+            else:
+                reject_alert = user_lexicon['reject_all'] if reject_all else user_lexicon['reject']
+            await bot.send_message(chat_id=user, text=reject_alert, parse_mode='HTML')
+            msg_to_pin = await bot.send_message(chat_id=user, text=txt_for_worker, parse_mode='HTML')
+            await bot.pin_chat_message(message_id=msg_to_pin.message_id, chat_id=user, disable_notification=True)
+            await log(logs, user, 'rejected_delivered')
         except TelegramForbiddenError:
             await msg.answer(text=f'Юзер id{user} заблокировал бота')
         except TelegramBadRequest:
@@ -213,22 +219,26 @@ async def reply_to_msg(msg: Message, bot: Bot):
             data = json.load(f)
         tasks = data[user]
 
-        # проставить reject в отклоненных файлах
-        count = 0
-        for file in rejected_files:
-            print('file', file, 'rejected')
-            tasks[f'file{file.zfill(2)}'][0] = 'reject'
-            count += 1
-        await log(logs, worker, f'{count} rejected')
-
-        # проставить accept в файлах, которые остались в статусе review
-        count = 0
-        for file in tasks:
-            if tasks[file][0] == 'review':
-                tasks[file][0] = 'accept'
-                print(file, 'accepted')
+        if block:
+            print('BLOCK')
+            tasks = []  # удалить задания, чтобы он ничего больше не присылал
+        else:
+            # проставить reject в отклоненных файлах
+            count = 0
+            for file in rejected_files:
+                print('file', file, 'rejected')
+                tasks[f'file{file.zfill(2)}'][0] = 'reject'
                 count += 1
-        await log(logs, worker, f'{count} accepted')
+            await log(logs, user, f'{count} rejected')
+
+            # проставить accept в файлах, которые остались в статусе review
+            count = 0
+            for file in tasks:
+                if tasks[file][0] == 'review':
+                    tasks[file][0] = 'accept'
+                    print(file, 'accepted')
+                    count += 1
+            await log(logs, user, f'{count} accepted')
 
         # сохранить статусы заданий
         data[user] = tasks

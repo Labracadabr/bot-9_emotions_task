@@ -165,7 +165,7 @@ async def personal_country(msg: Message, state: FSMContext):
 
         # если толокер, то дать id
         elif data_inf[user]['referral'].lower() == 'toloka':
-            await msg.answer(text=lexicon['tlk_ok'].format(verification, user), parse_mode='HTML')
+            await msg.answer(text=lexicon['tlk_ok'].format(user, verification), parse_mode='HTML')
             # await msg.answer(text=f'<code>{user}</code>', parse_mode='HTML')
             await log(logs, user, 'toloka ok')
             await state.clear()

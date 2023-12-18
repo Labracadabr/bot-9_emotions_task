@@ -90,6 +90,8 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
                 await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_ru, parse_mode='HTML')
             case 'en':
                 await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_en, parse_mode='HTML')
+            case 'id':
+                await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_id, parse_mode='HTML')
         await message.answer(text=lexicon['pol_agree'], reply_markup=keyboards.keyboard_ok)
 
         # бот переходит в состояние ожидания согласия с политикой
@@ -119,6 +121,9 @@ async def start_command(message: Message, command: CommandObject, state: FSMCont
                 await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_ru, parse_mode='HTML')
             case 'en':
                 await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_en, parse_mode='HTML')
+            case 'id':
+                await message.answer(text=lexicon['start'], reply_markup=keyboards.keyboard_privacy_id, parse_mode='HTML')
+
         await message.answer(text=lexicon['pol_agree'], reply_markup=keyboards.keyboard_ok)
         await state.set_state(FSM.policy)
         # await bot.send_message(text=lexicon[''], chat_id=user_id, reply_markup=keyboards.keyboard_user)

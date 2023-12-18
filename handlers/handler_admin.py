@@ -80,7 +80,7 @@ async def admin_no(callback: CallbackQuery, bot: Bot):
                                 'для каждого файла <b>одним ответом на это сообщение</b>!\n'
                                 'Укажи номер задания и через пробел причину. Следующее задание '
                                 '- перенос строки. Например:\n<i>05 плохое качество\n15 обрезано лицо</i>\n'
-                                'Спец символы в начале отказа:'
+                                '\nСпец символы в начале отказа:'
                                 '\n* - отклонить всё общей причиной'
                                 '\n! - отклонить всё без права исправить + авто-отказ в Толоке',
                                 msg.chat.id, msg.message_id, parse_mode='HTML', reply_markup=None)
@@ -242,8 +242,8 @@ async def reply_to_msg(msg: Message, bot: Bot):
 
         # сохранить статусы заданий
         data[user] = tasks
-        print('сохранить статусы заданий')
-        print(data[user])
+        # print('сохранить статусы заданий')
+        # print(data[user])
         with open(baza_task, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
             print(user, 'status saved')
@@ -451,8 +451,7 @@ async def adm_msg(msg: Message, bot: Bot):
         with open(baza_task, 'r', encoding='utf-8') as f:
             users = json.load(f)
         for user in users:
-            x = await get_status(user)
-            print(x)
+            x = get_status(user)
             non, rev, rej, acc = x['non'], x['rev'], x['rej'], x['acc']
             status = 'Ждет' if non == rej == 0 and rev > 0 else 'Выполняет'
 
@@ -465,9 +464,11 @@ async def adm_msg(msg: Message, bot: Bot):
                 await msg.answer(text=f'Отправляю файлы юзера id{user} в статусе {status}')
                 for i in output:
                     file_id, task_message = i
-                    await bot.send_document(chat_id=admin, document=file_id, caption=task_message, parse_mode='HTML',
-                                            disable_notification=True)
-                # сообщение с кнопками (✅принять или нет❌) - если нет валидатора, то кнопки получит админ
+                    if file_id == 'test':
+                        await bot.send_message(chat_id=admin, text=file_id+'\n'+task_message, parse_mode='HTML')
+                    else:
+                        await bot.send_document(chat_id=admin, document=file_id, caption=task_message, parse_mode='HTML')
+                # сообщение с кнопками (✅принять или нет❌)
                 await bot.send_message(chat_id=admin, text=f'{adm_lexicon["adm_review"]} id{user}?\n@{username} ref: {ref}',
                                        reply_markup=keyboards.keyboard_admin)
                 await log(logs, user, f'{status} files received by adm')

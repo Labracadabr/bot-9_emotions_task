@@ -84,7 +84,7 @@ async def log(file, key, item):
 
 
 # дать статус заданий по айди юзера
-async def get_status(user_id) -> dict:
+def get_status(user_id) -> dict:
     with open(baza_task, 'r') as f:
         data = json.load(f)
     non = rev = rej = acc = 0

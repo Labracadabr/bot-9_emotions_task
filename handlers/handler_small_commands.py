@@ -78,7 +78,7 @@ async def process_status_command(msg: Message, bot: Bot):
     await log(logs, user, '/status')
     language = await get_pers_info(user=user, key='lang')
     lexicon = load_lexicon(language)
-    stat = await get_status(user)
+    stat = get_status(user)
     # await msg.answer(f'Ваши задания:\n\n{stat}', parse_mode='HTML')
     await msg.answer(lexicon['status'].format(stat['acc'], stat['rej'], stat['rev'], stat['non'], ), parse_mode='HTML')
 

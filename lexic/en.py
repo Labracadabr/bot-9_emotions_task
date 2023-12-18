@@ -74,7 +74,7 @@ lexicon: dict[str:str] = {
     'all_sent': 'Thank you! You have sent all the necessary files. Please wait for your work to be reviewed.\n'
                  'Press the /personal command to indicate your gender and age, if you have not already specified it.',
      'no_more': 'No tasks available',
-    'block': 'Your assignment is rejected without an option to redo.',
+    'block': 'Your assignment is rejected without an option to redo. Reason:',
     'reject': 'We have checked your work. Unfortunately, some of the files did not pass the exam. Check out our '
                'comments and press /next to get the task.'
                '\nNext in each line is the number of the incorrectly completed task and a comment for it:',

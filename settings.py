@@ -1,7 +1,8 @@
 import os
 
 # список языков
-langs = ('ru', 'en')
+# langs = ('ru', 'en')
+langs = ('ru', 'en', 'id')
 
 # tg id работников
 dima = "992863889"

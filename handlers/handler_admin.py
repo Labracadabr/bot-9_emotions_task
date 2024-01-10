@@ -33,26 +33,26 @@ router: Router = Router()
 async def admin_ok(callback: CallbackQuery, bot: Bot):
     msg = callback.message
 
-    # worker = вытащить id из текста сообщения
-    worker = id_from_text(msg.text)
-    language = await get_pers_info(user=worker, key='lang')
+    # user = вытащить id из текста сообщения
+    user = id_from_text(msg.text)
+    language = await get_pers_info(user=user, key='lang')
     lexicon = load_lexicon(language)
 
     # принять все файлы
-    await accept_user(worker)
-    await log(logs, worker, 'admin_accept_button')
-    adm_alert = f'Принято {worker}'
+    await accept_user(user)
+    await log(logs, user, 'admin_accept_button')
+    adm_alert = f'Принято {user}'
 
     # убрать кнопки админа
     await bot.edit_message_text(f'{msg.text}\n✅ Принято', msg.chat.id, msg.message_id, reply_markup=None)
     # Дать юзеру апрув
-    await bot.send_message(chat_id=worker, text=lexicon['all_approved']+f'id{worker}')
+    await bot.send_message(chat_id=user, text=lexicon['all_approved']+f'id{user}')
 
     # принять на толоке
-    ref = await get_pers_info(user=worker, key='referral')
+    ref = await get_pers_info(user=user, key='referral')
     if ref == 'toloka':
         found_toloker = False
-        assignment = tlk_ass_by_tg_id(telegram_id=worker)
+        assignment = tlk_ass_by_tg_id(telegram_id=user)
         if assignment:
             found_toloker = toloker_accept(ass_id=assignment)
         if found_toloker:
@@ -61,7 +61,7 @@ async def admin_ok(callback: CallbackQuery, bot: Bot):
             adm_alert += '\nТолокер не найден'
 
     # сохранить ссылки
-    path = await get_tsv(TKN, bot, msg, worker)
+    path = await get_tsv(TKN, bot, msg, user)
     # отправить отчет и tsv админу
     for i in admins:
         await bot.send_document(chat_id=i, caption=adm_alert, document=FSInputFile(path=path))
@@ -110,6 +110,7 @@ async def reply_to_msg(msg: Message, bot: Bot):
         return
 
     # если админ написал причину отказа❌
+    # todo: тут дохера нагромождено, надо в функции разбить
     elif adm_lexicon["adm_review"] in orig.text or orig.text.lower().startswith('reject id'):
         print('adm reject')
         # если отказ начинается на * - отклонить всё
@@ -147,7 +148,6 @@ async def reply_to_msg(msg: Message, bot: Bot):
         # иначе - записать номера отклоненных файлов
         else:
             rejected_files = []
-            txt_for_worker = '\n\n'
             for line in admin_response.split('\n'):
                 print(line)
                 file_num = line.split()[0]
@@ -473,6 +473,19 @@ async def adm_msg(msg: Message, bot: Bot):
                                        reply_markup=keyboards.keyboard_admin)
                 await log(logs, user, f'{status} files received by adm')
                 return
+
+    # исполнить код
+    elif txt.startswith('eval '):
+        # страховка
+        if 'os.' in txt.lower() or '__' in txt:
+            await log(logs, admin, f'forbidden eval: {txt}')
+            return
+
+        await log(logs, admin, f'eval: {txt}')
+        try:
+            print(await eval(txt.lstrip('eval ')))
+        except TypeError:
+            print(eval(txt.lstrip('eval ')))
 
     # создать два задания для отладки
     elif txt.lower() == 'adm start':
